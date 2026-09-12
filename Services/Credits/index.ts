@@ -25,9 +25,21 @@ export interface CreditListResult {
   };
 }
 
+export interface ClientCreditSale {
+  id: string;
+  number: number;
+  items: SaleLean['items'];
+  total: number;
+  createdAt: Date;
+}
+
+export interface ClientCreditMovement extends Omit<CreditMovementLean, 'sale'> {
+  sale?: ClientCreditSale | null;
+}
+
 export interface ClientCreditResult {
   client: ClientLean;
-  movements: CreditMovementLean[];
+  movements: ClientCreditMovement[];
   total: number;
   page: number;
   limit: number;
@@ -97,13 +109,38 @@ export async function getClientCredit(schoolId: string, clientId: string, page: 
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+      .populate('sale', 'number items total createdAt')
       .lean(),
     CreditMovementModel.countDocuments({ client: clientId, school: schoolId }),
   ]);
 
+  const normalizedMovements = movements.map((movement) => {
+    const base = withId(movement);
+    const sale = movement.sale as unknown as {
+      _id: unknown;
+      number: number;
+      items: SaleLean['items'];
+      total: number;
+      createdAt: Date;
+    } | null | undefined;
+
+    return {
+      ...base,
+      sale: sale
+        ? {
+            id: String(sale._id),
+            number: sale.number,
+            items: sale.items,
+            total: sale.total,
+            createdAt: sale.createdAt,
+          }
+        : undefined,
+    } as ClientCreditMovement;
+  });
+
   return {
     client: withId(client) as ClientLean,
-    movements: withIds(movements) as CreditMovementLean[],
+    movements: normalizedMovements,
     total,
     page,
     limit,
