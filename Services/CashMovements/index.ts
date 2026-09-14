@@ -148,8 +148,8 @@ export async function listCashMovements(params: {
   return {
     items: items.map(m => ({
       ...withId(m),
-      sellerName: (m as any).seller?.name ?? 'Desconocido',
-      shiftNumber: (m as any).cashShift?.id ?? '',
+      sellerName: (m as unknown as { seller?: { name?: string } | null }).seller?.name ?? 'Desconocido',
+      shiftNumber: (m as unknown as { cashShift?: { id?: string } | null }).cashShift?.id ?? '',
     })) as CashMovementLean[],
     total,
     page: params.page,

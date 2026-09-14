@@ -1,7 +1,5 @@
 import type { SaleLean, SaleType, PaymentMethod } from '../../models/Sale/index.js';
 import type { CreditMovementLean } from '../../models/CreditMovement/index.js';
-import type { ClientLean } from '../../models/Client/index.js';
-import type { ProductLean } from '../../models/Product/index.js';
 import type { ClientSession } from 'mongoose';
 
 export type ReturnMethod = 'cash' | 'transfer' | 'credit';

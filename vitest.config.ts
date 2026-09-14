@@ -10,6 +10,10 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.ts'],
+    // Los tests de integración comparten el mock server (test-server.ts); serializamos
+    // los archivos para evitar carreras intermitentes entre archivos.
+    fileParallelism: false,
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

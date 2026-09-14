@@ -2,12 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import {
   AppError,
-  AuthenticationError,
-  AuthorizationError,
-  NotFoundError,
   ValidationError,
-  ConflictError,
-  PaymentError,
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 

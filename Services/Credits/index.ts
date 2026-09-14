@@ -156,55 +156,75 @@ export async function settleDebt(
   method: 'cash' | 'transfer',
   note?: string
 ): Promise<SettleDebtResult> {
-  const client = await ClientModel.findOne({ _id: clientId, school: schoolId });
-  if (!client) {
-    throw new NotFoundError('Cliente no encontrado');
-  }
-  if (client.balance <= 0) {
-    throw new ValidationError('El cliente no tiene deuda pendiente');
-  }
-  if (amount > client.balance) {
-    throw new ValidationError('El monto a pagar supera la deuda del cliente');
-  }
+  const session = await ClientModel.db.startSession();
+  session.startTransaction();
 
-  const newBalance = client.balance - amount;
-  client.balance = newBalance;
-  await client.save();
-
-  // Find the oldest unsettled sale to mark as settled
-  let settledSale: SaleLean | undefined;
-  if (newBalance === 0) {
-    const unsettledSale = await SaleModel.findOne({
-      client: clientId,
-      school: schoolId,
-      paymentMethod: 'credit',
-      settled: false,
-      type: 'sale',
-    }).sort({ createdAt: 1 }).lean();
-    
-    if (unsettledSale) {
-      await SaleModel.findByIdAndUpdate(unsettledSale._id, { settled: true, settledAt: new Date() });
-      settledSale = withId(unsettledSale) as SaleLean;
+  try {
+    const client = await ClientModel.findOne({ _id: clientId, school: schoolId }).session(session);
+    if (!client) {
+      throw new NotFoundError('Cliente no encontrado');
     }
+    if (client.balance <= 0) {
+      throw new ValidationError('El cliente no tiene deuda pendiente');
+    }
+    if (amount > client.balance) {
+      throw new ValidationError('El monto a pagar supera la deuda del cliente');
+    }
+
+    // Decremento atómico para evitar sobre-pago ante requests concurrentes
+    const updatedClient = await ClientModel.findOneAndUpdate(
+      { _id: clientId, school: schoolId, balance: { $gte: amount } },
+      { $inc: { balance: -amount } },
+      { session, new: true }
+    );
+    if (!updatedClient) {
+      throw new ValidationError('El monto a pagar supera la deuda del cliente');
+    }
+
+    const newBalance = updatedClient.balance;
+
+    // Find the oldest unsettled sale to mark as settled
+    let settledSale: SaleLean | undefined;
+    if (newBalance === 0) {
+      const unsettledSale = await SaleModel.findOne({
+        client: clientId,
+        school: schoolId,
+        paymentMethod: 'credit',
+        settled: false,
+        type: 'sale',
+      }).sort({ createdAt: 1 }).session(session);
+
+      if (unsettledSale) {
+        await SaleModel.findByIdAndUpdate(unsettledSale._id, { settled: true, settledAt: new Date() }, { session });
+        settledSale = withId(unsettledSale) as SaleLean;
+      }
+    }
+
+    const creditMovement = await CreditMovementModel.create([{
+      client: clientId,
+      sale: settledSale?._id,
+      school: schoolId,
+      type: 'payment',
+      amount,
+      balanceAfter: newBalance,
+      method,
+      note: note || `Pago de deuda (${method})`,
+      admin: adminId,
+    }], { session });
+
+    await session.commitTransaction();
+
+    return {
+      creditMovement: creditMovement[0]!.toJSON() as CreditMovementLean,
+      client: updatedClient.toJSON() as ClientLean,
+      sale: settledSale ?? undefined,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
   }
-
-  const creditMovement = await CreditMovementModel.create({
-    client: clientId,
-    sale: settledSale?._id,
-    school: schoolId,
-    type: 'payment',
-    amount,
-    balanceAfter: newBalance,
-    method,
-    note: note || `Pago de deuda (${method})`,
-    admin: adminId,
-  });
-
-  return {
-    creditMovement: creditMovement.toJSON() as CreditMovementLean,
-    client: client.toJSON() as ClientLean,
-    sale: settledSale ?? undefined,
-  };
 }
 
 export interface ClientDebt {

@@ -1,8 +1,8 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
-import { env } from '../../config/env.js';
 
 export type PaymentMethod = 'cash' | 'transfer' | 'credit';
 export type SaleType = 'sale' | 'return' | 'credit_note';
+export type SaleSource = 'pos' | 'bot';
 
 export interface ISale extends Document {
   items: Array<{
@@ -22,6 +22,7 @@ export interface ISale extends Document {
   change: number;
   paymentMethod: PaymentMethod;
   type: SaleType;
+  source?: SaleSource;
   client?: Types.ObjectId;
   seller: Types.ObjectId;
   cashShift: Types.ObjectId;
@@ -60,6 +61,7 @@ const saleSchema = new Schema<ISale>(
       required: true,
     },
     type: { type: String, enum: ['sale', 'return', 'credit_note'], required: true, default: 'sale' },
+    source: { type: String, enum: ['pos', 'bot'], default: 'pos' },
     client: { type: Schema.Types.ObjectId, ref: 'Client' },
     seller: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     cashShift: { type: Schema.Types.ObjectId, ref: 'CashShift', required: true },

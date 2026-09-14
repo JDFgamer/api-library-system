@@ -3,13 +3,16 @@ import { SaleModel } from '../../../../models/Sale/index.js';
 import { ProductModel } from '../../../../models/Product/index.js';
 import { ClientModel } from '../../../../models/Client/index.js';
 import { CashShiftModel } from '../../../../models/CashShift/index.js';
+import { CashMovementModel } from '../../../../models/CashMovement/index.js';
 import { CreditMovementModel } from '../../../../models/CreditMovement/index.js';
 import * as salesService from '../../../../Services/Sales/index.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../../../utils/errors.js';
 
+type MockDoc = { _id?: unknown; [key: string]: unknown };
+
 const leanMock = vi.hoisted(() => {
-  const withId = vi.fn((x: any) => ({ ...x, id: x._id?.toString() ?? 'mock-id' }));
-  const withIds = vi.fn((arr: any[]) => arr.map((x: any) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })));
+  const withId = vi.fn((x: MockDoc) => ({ ...x, id: x._id?.toString() ?? 'mock-id' }));
+  const withIds = vi.fn((arr: MockDoc[]) => arr.map((x: MockDoc) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })));
   return { withId, withIds };
 });
 
@@ -17,6 +20,7 @@ vi.mock('../../../../models/Sale/index.js');
 vi.mock('../../../../models/Product/index.js');
 vi.mock('../../../../models/Client/index.js');
 vi.mock('../../../../models/CreditMovement/index.js');
+vi.mock('../../../../models/CashMovement/index.js');
 vi.mock('../../../../utils/lean.js', () => leanMock);
 
 const cashShiftFindOneMock = vi.hoisted(() => vi.fn().mockReturnValue({
@@ -43,6 +47,11 @@ describe('Sales Service - createReturn', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Defaults para el guard de caja de createReturn
+    // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+    vi.mocked(SaleModel.find).mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+    vi.mocked(CashMovementModel.find).mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
   });
 
   it('should create return with cash method and restore stock', async () => {

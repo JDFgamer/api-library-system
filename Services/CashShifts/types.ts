@@ -64,6 +64,7 @@ export interface CloseCashShiftResult {
 export interface DailySummary {
   date: string;
   totalOpening: number;
+  inheritedOpening: number;
   cashSales: number;
   transferSales: number;
   returns: number;
@@ -73,6 +74,7 @@ export interface DailySummary {
   netMovements: number;
   totalExpected: number;
   finalCount: number;
+  salesInOpenShifts: number;
   difference: number;
   shiftsWithDifference: number;
   totalShifts: number;

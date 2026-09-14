@@ -1,9 +1,10 @@
 import { SaleModel } from '../../models/Sale/index.js';
-import type { SaleLean } from '../../models/Sale/index.js';
-import { PaymentMethod, SaleType } from '../../models/Sale/index.js';
+import type { SaleLean, SaleSource } from '../../models/Sale/index.js';
+import { PaymentMethod } from '../../models/Sale/index.js';
 import { ProductModel } from '../../models/Product/index.js';
 import { ClientModel } from '../../models/Client/index.js';
 import { CashShiftModel } from '../../models/CashShift/index.js';
+import { CashMovementModel } from '../../models/CashMovement/index.js';
 import { CreditMovementModel } from '../../models/CreditMovement/index.js';
 import type { CreditMovementLean } from '../../models/CreditMovement/index.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../utils/errors.js';
@@ -114,7 +115,8 @@ export async function createSale(
   clientId: string | undefined,
   discount: number,
   paymentMethod: PaymentMethod,
-  amountReceived?: number
+  amountReceived?: number,
+  source: SaleSource = 'pos'
 ): Promise<SaleResult> {
   let effectiveClientId = clientId;
 
@@ -173,11 +175,12 @@ export async function createSale(
       change: preview.change ?? 0,
       paymentMethod: preview.paymentMethod,
       type: 'sale',
-      client: clientId ?? undefined,
+      client: effectiveClientId ?? undefined,
       seller: sellerId,
       cashShift: cashShiftId,
       school: schoolId,
       settled: paymentMethod !== 'credit',
+      source,
     }], { session });
 
     let creditMovement;
@@ -294,14 +297,30 @@ export async function returnSale(
     throw new ValidationError('No se puede devolver una devolución ni una nota de crédito');
   }
 
-  // Validate return items against original sale
+  // Cantidades ya devueltas de esta venta para impedir doble devolución del mismo ítem
+  const previousReturns = await SaleModel.find({
+    originalSale: saleId,
+    school: schoolId,
+    type: 'return',
+    voided: false,
+  }).lean();
+  const alreadyReturnedByProduct = new Map<string, number>();
+  for (const previousReturn of previousReturns) {
+    for (const item of previousReturn.items) {
+      const key = String(item.product);
+      alreadyReturnedByProduct.set(key, (alreadyReturnedByProduct.get(key) ?? 0) + item.quantity);
+    }
+  }
+
+  // Validate return items against original sale and previous returns
   for (const returnItem of returnItems) {
     const originalItem = originalSale.items.find(i => i.product.toString() === returnItem.productId);
     if (!originalItem) {
       throw new ValidationError(`Producto no encontrado en la venta original: ${returnItem.productId}`);
     }
-    if (returnItem.quantity > originalItem.quantity) {
-      throw new ValidationError(`Cantidad a devolver (${returnItem.quantity}) supera la comprada (${originalItem.quantity})`);
+    const alreadyReturned = alreadyReturnedByProduct.get(returnItem.productId) ?? 0;
+    if (returnItem.quantity + alreadyReturned > originalItem.quantity) {
+      throw new ValidationError(`Cantidad a devolver (${returnItem.quantity}) supera la disponible para devolver (${Math.max(0, originalItem.quantity - alreadyReturned)})`);
     }
   }
 
@@ -455,7 +474,7 @@ export async function listSales(params: {
   ]);
 
   return {
-    items: withIds(items) as PopulatedSaleLean[],
+    items: withIds(items) as unknown as PopulatedSaleLean[],
     total,
     page: params.page,
     limit: params.limit,
@@ -521,7 +540,7 @@ export async function getSalesSummary(schoolId: string): Promise<SalesSummary> {
 export async function createReturn(params: CreateReturnParams): Promise<SaleResult> {
   const { schoolId, sellerId, cashShiftId, items, clientId, method } = params;
 
-  const [products, client, cashShift] = await Promise.all([
+  const [products, , cashShift] = await Promise.all([
     ProductModel.find({ _id: { $in: items.map(i => i.product) }, school: schoolId }).lean(),
     clientId ? ClientModel.findOne({ _id: clientId, school: schoolId }).lean() : Promise.resolve(null),
     CashShiftModel.findOne({ _id: cashShiftId, school: schoolId }).lean(),
@@ -564,6 +583,27 @@ export async function createReturn(params: CreateReturnParams): Promise<SaleResu
 
   const discount = 0; // No discount on returns
   const total = subtotal;
+
+  // Guard de caja: no se puede devolver más efectivo del que realmente hay en el turno.
+  if (method === 'cash') {
+    const [cashSales, cashReturns, cashIn, cashOut] = await Promise.all([
+      SaleModel.find({ school: schoolId, cashShift: cashShiftId, type: 'sale', paymentMethod: 'cash', voided: false }).lean(),
+      SaleModel.find({ school: schoolId, cashShift: cashShiftId, type: 'return', paymentMethod: 'cash', voided: false }).lean(),
+      CashMovementModel.find({ school: schoolId, cashShift: cashShiftId, type: 'in' }).lean(),
+      CashMovementModel.find({ school: schoolId, cashShift: cashShiftId, type: 'out' }).lean(),
+    ]);
+
+    const cashAvailable =
+      (cashShift.openingAmount ?? 0) +
+      cashSales.reduce((sum, sale) => sum + sale.total, 0) -
+      cashReturns.reduce((sum, sale) => sum + sale.total, 0) +
+      cashIn.reduce((sum, movement) => sum + movement.amount, 0) -
+      cashOut.reduce((sum, movement) => sum + movement.amount, 0);
+
+    if (total > cashAvailable) {
+      throw new ValidationError(`No hay suficiente efectivo en caja para la devolución (disponible: ${cashAvailable})`);
+    }
+  }
 
   const session = await SaleModel.db.startSession();
   session.startTransaction();

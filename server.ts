@@ -20,6 +20,7 @@ import settingsRoutes from './routes/settings/index.js';
 import schoolsRoutes from './routes/schools/index.js';
 import adminsRoutes from './routes/admins/index.js';
 import posRoutes from './routes/pos/index.js';
+import aiRoutes from './routes/ai/index.js';
 
 const app = express();
 
@@ -30,8 +31,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // CORS configuration
 // In production, restrict to specific origins; in development, allow all for flexibility
 const allowedOrigins = env.NODE_ENV === 'production'
-  ? [env.FRONTEND_POS_URL, env.FRONTEND_ADMIN_URL]
-  : ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'];
+  ? [env.FRONTEND_POS_URL, env.FRONTEND_ADMIN_URL, env.FRONTEND_BOT_URL]
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175'];
 
 app.use(cors({
   origin: allowedOrigins,
@@ -59,6 +60,7 @@ app.use('/settings', settingsRoutes);
 app.use('/schools', schoolsRoutes);
 app.use('/admins', adminsRoutes);
 app.use('/pos', posRoutes);
+app.use('/ai', aiRoutes);
 
 // Handle 404s
 app.use(notFoundHandler);
@@ -75,10 +77,10 @@ export default async function handler(req: import('express').Request, res: impor
     }
 
     // Pass to Express router
-    const expressApp = app as any;
+    const expressApp = app as unknown as (req: import('express').Request, res: import('express').Response) => void;
     return expressApp(req, res);
-  } catch (error: any) {
-    logger.error('Error in server handler', { error: error.message });
+  } catch (error: unknown) {
+    logger.error('Error in server handler', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       error: 'INTERNAL_SERVER_ERROR',
       message: 'Error interno del servidor',

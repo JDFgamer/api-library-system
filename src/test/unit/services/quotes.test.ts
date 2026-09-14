@@ -8,10 +8,12 @@ import { NotFoundError, ValidationError } from '../../../../utils/errors.js';
 vi.mock('../../../../models/Quote/index.js');
 vi.mock('../../../../models/Product/index.js');
 vi.mock('../../../../models/Client/index.js');
+type MockDoc = { _id?: unknown; [key: string]: unknown };
+
 vi.mock('../../../../utils/lean.js', () => {
   return {
-    withId: vi.fn((x: any) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })),
-    withIds: vi.fn((arr: any[]) => arr.map((x: any) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })))
+    withId: vi.fn((x: MockDoc) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })),
+    withIds: vi.fn((arr: MockDoc[]) => arr.map((x: MockDoc) => ({ ...x, id: x._id?.toString() ?? 'mock-id' })))
   };
 });
 
@@ -307,6 +309,57 @@ describe('Quotes Service', () => {
       vi.mocked(QuoteModel.findOne).mockResolvedValue(null);
 
       await expect(quotesService.cancelQuote(schoolId, 'non-existent')).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('markBotOrderPaying (aviso "Ya pagué" del cliente)', () => {
+    const baseQuote = {
+      _id: 'quote-1',
+      status: 'confirmed',
+      paymentIntent: 'transfer',
+      botSessionId: 'session-1',
+      school: schoolId,
+      save: vi.fn().mockResolvedValue(true),
+      toJSON: function() { return { ...this, id: this._id }; },
+    };
+
+    it('marca paying con payingBy=customer y notifica al cliente', async () => {
+      const mockQuote = { ...baseQuote, save: vi.fn().mockResolvedValue(true) };
+      // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+      vi.mocked(QuoteModel.findOne).mockResolvedValue(mockQuote);
+
+      const result = await quotesService.markBotOrderPaying(schoolId, 'PED-1234');
+
+      expect(result.status).toBe('paying');
+      expect(mockQuote.payingBy).toBe('customer');
+      expect(mockQuote.save).toHaveBeenCalled();
+    });
+
+    it('es idempotente: si ya está paying, no vuelve a notificar', async () => {
+      const mockQuote = { ...baseQuote, status: 'paying', payingBy: 'customer', save: vi.fn() };
+      // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+      vi.mocked(QuoteModel.findOne).mockResolvedValue(mockQuote);
+
+      const result = await quotesService.markBotOrderPaying(schoolId, 'PED-1234');
+
+      expect(result.status).toBe('paying');
+      expect(mockQuote.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza pedido que no es de transferencia', async () => {
+      const mockQuote = { ...baseQuote, paymentIntent: 'cash' };
+      // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+      vi.mocked(QuoteModel.findOne).mockResolvedValue(mockQuote);
+
+      await expect(quotesService.markBotOrderPaying(schoolId, 'PED-1234')).rejects.toThrow(ValidationError);
+    });
+
+    it('rechaza pedido sin confirmar por el negocio', async () => {
+      const mockQuote = { ...baseQuote, status: 'active' };
+      // @ts-expect-error - mock return type doesn't match Mongoose Query exactly
+      vi.mocked(QuoteModel.findOne).mockResolvedValue(mockQuote);
+
+      await expect(quotesService.markBotOrderPaying(schoolId, 'PED-1234')).rejects.toThrow(ValidationError);
     });
   });
 });

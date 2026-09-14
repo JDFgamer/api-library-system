@@ -184,7 +184,6 @@ export async function getDailyClosing(schoolId: string, date?: string): Promise<
   }).lean();
 
   const salesOnly = sales.filter(s => s.type === 'sale');
-  const returns = sales.filter(s => s.type === 'return');
 
   const totalSales = salesOnly.reduce((sum, s) => sum + s.total, 0);
   const cashSales = salesOnly.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0);

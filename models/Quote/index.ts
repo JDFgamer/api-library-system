@@ -1,6 +1,18 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
-export type QuoteStatus = 'active' | 'cancelled';
+export type QuoteStatus = 'active' | 'confirmed' | 'ready' | 'paying' | 'paid' | 'cancelled';
+export type QuoteSource = 'pos' | 'bot';
+
+export const QUOTE_PUBLIC_CODE_ALPHABET = '0123456789';
+export const QUOTE_PUBLIC_CODE_LENGTH = 4;
+
+export function generateQuotePublicCode(): string {
+  let code = '';
+  for (let i = 0; i < QUOTE_PUBLIC_CODE_LENGTH; i++) {
+    code += QUOTE_PUBLIC_CODE_ALPHABET[Math.floor(Math.random() * QUOTE_PUBLIC_CODE_ALPHABET.length)];
+  }
+  return `PED-${code}`;
+}
 
 export interface IQuote extends Document {
   items: Array<{
@@ -20,6 +32,16 @@ export interface IQuote extends Document {
   seller: Types.ObjectId;
   school: Types.ObjectId;
   status: QuoteStatus;
+  source: QuoteSource;
+  publicCode?: string;
+  customerName?: string;
+  customerPhone?: string;
+  paymentIntent?: 'cash' | 'transfer';
+  /** Sesión del widget que creó el pedido (para avisarle cambios de estado). */
+  botSessionId?: string;
+  /** Quién puso el pedido en 'paying': 'customer' (aviso de pago) | 'staff' (lock de cobro). */
+  payingBy?: 'customer' | 'staff';
+  sale?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,7 +66,15 @@ const quoteSchema = new Schema<IQuote>(
     client: { type: Schema.Types.ObjectId, ref: 'Client' },
     seller: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     school: { type: Schema.Types.ObjectId, ref: 'School', required: true },
-    status: { type: String, enum: ['active', 'cancelled'], required: true, default: 'active' },
+    status: { type: String, enum: ['active', 'confirmed', 'ready', 'paying', 'paid', 'cancelled'], required: true, default: 'active' },
+    source: { type: String, enum: ['pos', 'bot'], required: true, default: 'pos' },
+    publicCode: { type: String, unique: true, sparse: true, index: true },
+    customerName: { type: String, default: '' },
+    customerPhone: { type: String, default: '' },
+    paymentIntent: { type: String, enum: ['cash', 'transfer'] },
+    botSessionId: { type: String, default: '' },
+    payingBy: { type: String, enum: ['customer', 'staff'] },
+    sale: { type: Schema.Types.ObjectId, ref: 'Sale' },
   },
   {
     timestamps: true,

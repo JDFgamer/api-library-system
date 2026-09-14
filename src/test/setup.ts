@@ -2,6 +2,9 @@ import { beforeAll, afterAll, afterEach, vi } from 'vitest';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 
+const TEST_JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
+process.env.JWT_SECRET = TEST_JWT_SECRET;
+
 // Global test utilities
 export const testUtils = {
   // Create a valid ObjectId string
@@ -40,7 +43,7 @@ export const testUtils = {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 3600,
     };
-    return jwt.sign(defaultPayload, process.env.JWT_SECRET!);
+    return jwt.sign(defaultPayload, TEST_JWT_SECRET);
   },
 
   // Create auth header

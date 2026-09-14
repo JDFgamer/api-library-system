@@ -5,7 +5,6 @@ import { CashMovementModel } from '../../models/CashMovement/index.js';
 import { CreditMovementModel } from '../../models/CreditMovement/index.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../utils/errors.js';
 import { withId, withIds } from '../../utils/lean.js';
-import { cogs, grossProfit, grossMarginPercent } from '../../utils/profit.js';
 import type {
   CloseCashShiftResult,
   DailySummary,
@@ -33,38 +32,6 @@ export async function openCashShift(schoolId: string, sellerId: string, openingA
   return cashShift.toJSON() as CashShiftLean;
 }
 
-
-interface Profitability {
-  revenue: number;
-  cogs: number;
-  grossProfit: number;
-  grossMarginPercent: number | null;
-}
-
-function summarizeProfitability(
-  sales: Array<{ type: string; total: number; items: Array<{ unitCost?: number; quantity: number }> }>
-): Profitability {
-  let revenue = 0;
-  let cost = 0;
-
-  for (const sale of sales) {
-    if (sale.type === 'sale') {
-      revenue += sale.total;
-      cost += cogs(sale.items);
-    } else if (sale.type === 'return') {
-      revenue -= sale.total;
-      cost -= cogs(sale.items);
-    }
-  }
-
-  return {
-    revenue,
-    cogs: cost,
-    grossProfit: grossProfit(revenue, cost),
-    grossMarginPercent: grossMarginPercent(revenue, cost),
-  };
-}
-
 export async function getActiveCashShift(schoolId: string, sellerId: string): Promise<CashShiftLean | null> {
   const cashShift = await CashShiftModel.findOne({ seller: sellerId, school: schoolId, status: 'open' }).lean();
   return cashShift ? (withId(cashShift) as CashShiftLean) : null;
@@ -75,13 +42,17 @@ export async function closeCashShift(
   cashShiftId: string,
   sellerId: string,
   closingAmount: number,
-  note?: string
+  note?: string,
+  isAdmin = false
 ): Promise<CloseCashShiftResult> {
   const cashShift = await CashShiftModel.findOne({ _id: cashShiftId, school: schoolId });
   if (!cashShift) {
     throw new NotFoundError('Turno no encontrado');
   }
-  if (cashShift.seller.toString() !== sellerId) {
+  // El dueño del turno cierra el suyo; un admin puede cerrar cualquier turno del negocio
+  // (p. ej. el turno del bot, o el de un vendedor que se fue sin cerrar).
+  const isShiftOwner = cashShift.seller.toString() === sellerId;
+  if (!isShiftOwner && !isAdmin) {
     throw new Error('No autorizado para cerrar este turno');
   }
   if (cashShift.status === 'closed') {
@@ -368,8 +339,16 @@ export async function getDailySummary(schoolId: string, date?: Date): Promise<Da
   const end = new Date(target);
   end.setHours(23, 59, 59, 999);
 
-  const [shifts, sales, creditMovements, cashMovements] = await Promise.all([
+  const [shiftsOpenedToday, openShifts, shiftsClosedToday, sales, creditMovements, cashMovements] = await Promise.all([
     CashShiftModel.find({ school: schoolId, openedAt: { $gte: start, $lte: end } })
+      .populate({ path: 'seller', select: 'name' })
+      .lean(),
+    // Turnos abiertos de días anteriores: sus ventas de hoy también están en caja y siguen pendientes de conteo.
+    CashShiftModel.find({ school: schoolId, status: 'open' })
+      .populate({ path: 'seller', select: 'name' })
+      .lean(),
+    // Turnos que abrieron otro día pero cerraron HOY: su conteo entra hoy, pero su apertura no es plata nueva de hoy.
+    CashShiftModel.find({ school: schoolId, closedAt: { $gte: start, $lte: end }, openedAt: { $lt: start } })
       .populate({ path: 'seller', select: 'name' })
       .lean(),
     SaleModel.find({ school: schoolId, createdAt: { $gte: start, $lte: end }, voided: false }).lean(),
@@ -377,7 +356,13 @@ export async function getDailySummary(schoolId: string, date?: Date): Promise<Da
     CashMovementModel.find({ school: schoolId, createdAt: { $gte: start, $lte: end } }).lean(),
   ]);
 
-  const totalOpening = shifts.reduce((s, sh) => s + sh.openingAmount, 0);
+  const relevantOpen = openShifts.filter(s => !shiftsOpenedToday.some(t => String(t._id) === String(s._id)));
+  const allRelevantShifts = [...shiftsOpenedToday, ...relevantOpen];
+
+  const totalOpening = shiftsOpenedToday.reduce((s, sh) => s + sh.openingAmount, 0);
+  // Apertura de turnos heredados (abrieron antes de hoy): la plata entró a la caja otro día,
+  // pero su conteo de cierre de hoy la incluye → hay que restarla para cuadrar.
+  const inheritedOpening = shiftsClosedToday.reduce((s, sh) => s + sh.openingAmount, 0);
 
   // Use shared calculateSalesTotals for consistency
   const salesTotals = calculateSalesTotals(sales as Array<{ type: string; paymentMethod: 'cash' | 'transfer' | 'credit'; total: number }>);
@@ -398,17 +383,28 @@ export async function getDailySummary(schoolId: string, date?: Date): Promise<Da
   // totalExpected = opening + cash sales - returns cash + credit payments - cash out + cash in
   const totalExpected = totalOpening + cashSalesTotal - returnsCashTotal + creditPaymentsTotal - cashOutTotal + cashInTotal;
 
-  const closedShifts = shifts.filter(s => s.status === 'closed');
-  const finalCount = closedShifts.reduce((s, sh) => s + (sh.closingAmount ?? 0), 0);
-  const difference = finalCount - totalExpected;
+  const closedShifts = allRelevantShifts.filter(s => s.status === 'closed');
+  // Conteo de hoy = turnos que abrieron hoy y cerraron + turnos heredados que cerraron hoy
+  // (los heredados no están en allRelevantShifts: abrieron antes de hoy y ya no están abiertos).
+  const finalCount =
+    closedShifts.reduce((s, sh) => s + (sh.closingAmount ?? 0), 0) +
+    shiftsClosedToday.reduce((s, sh) => s + (sh.closingAmount ?? 0), 0);
+  const openTodayOrStillOpen = allRelevantShifts.filter(s => s.status === 'open');
+  // Ventas de hoy que pertenecen a turnos todavía abiertos: efectivo en caja pero aún sin contar.
+  const openShiftIds = new Set(openTodayOrStillOpen.map(s => String(s._id)));
+  const salesInOpenShifts = sales
+    .filter(sale => openShiftIds.has(String((sale as { cashShift?: unknown }).cashShift)))
+    .reduce((sum, sale) => sum + (sale as { total: number }).total, 0);
+  // Diferencia real = (lo contado hoy, sin la apertura heredada que ya era plata en caja) + pendiente - operación
+  const difference = finalCount - inheritedOpening + salesInOpenShifts - totalExpected;
   const shiftsWithDifference = closedShifts.filter(sh => sh.difference !== 0 && sh.difference != null).length;
-  const pendingShifts = shifts
-    .filter(s => s.status === 'open')
+  const pendingShifts = openTodayOrStillOpen
     .map(s => ({ sellerName: ((s as { seller: { name?: string | undefined } }).seller?.name ?? 'Desconocido'), id: String(s._id) }));
 
   return {
     date: start.toISOString().split('T')[0] as string,
     totalOpening,
+    inheritedOpening,
     cashSales: cashSalesTotal,
     transferSales: transferSalesTotal,
     returns: returnsCashTotal,
@@ -418,9 +414,10 @@ export async function getDailySummary(schoolId: string, date?: Date): Promise<Da
     netMovements,
     totalExpected,
     finalCount,
+    salesInOpenShifts,
     difference,
     shiftsWithDifference,
-    totalShifts: shifts.length,
+    totalShifts: allRelevantShifts.length + shiftsClosedToday.length,
     pendingShifts,
   };
 }

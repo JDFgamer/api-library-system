@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { testUtils } from './setup.js';
 
 // Set JWT_SECRET for tests

@@ -19,6 +19,15 @@ export interface Env {
   EMAIL_FROM: string;
   FRONTEND_POS_URL: string;
   FRONTEND_ADMIN_URL: string;
+  FRONTEND_BOT_URL: string;
+  AI_LLM_BASE_URL: string;
+  AI_LLM_API_KEY?: string;
+  AI_LLM_MODEL: string;
+  AI_LLM_TIMEOUT_MS: number;
+  AI_LLM_FALLBACK_BASE_URL?: string;
+  AI_LLM_FALLBACK_API_KEY?: string;
+  AI_LLM_FALLBACK_MODEL?: string;
+  AI_MAX_TOOL_CALLS: number;
 }
 
 export const env: Env = {
@@ -39,4 +48,13 @@ export const env: Env = {
   EMAIL_FROM: process.env.EMAIL_FROM ?? 'Library System <noreply@librarysystem.com>',
   FRONTEND_POS_URL: process.env.FRONTEND_POS_URL ?? 'http://localhost:5173',
   FRONTEND_ADMIN_URL: process.env.FRONTEND_ADMIN_URL ?? 'http://localhost:5174',
+  FRONTEND_BOT_URL: process.env.FRONTEND_BOT_URL ?? 'http://localhost:5175',
+  AI_LLM_BASE_URL: process.env.AI_LLM_BASE_URL ?? 'https://api.z.ai/api/paas/v4/',
+  AI_LLM_API_KEY: process.env.AI_LLM_API_KEY,
+  AI_LLM_MODEL: process.env.AI_LLM_MODEL ?? 'glm-4.7-flashx',
+  AI_LLM_TIMEOUT_MS: Number(process.env.AI_LLM_TIMEOUT_MS) || 15000,
+  AI_LLM_FALLBACK_BASE_URL: process.env.AI_LLM_FALLBACK_BASE_URL,
+  AI_LLM_FALLBACK_API_KEY: process.env.AI_LLM_FALLBACK_API_KEY,
+  AI_LLM_FALLBACK_MODEL: process.env.AI_LLM_FALLBACK_MODEL,
+  AI_MAX_TOOL_CALLS: Number(process.env.AI_MAX_TOOL_CALLS) ?? 3,
 };

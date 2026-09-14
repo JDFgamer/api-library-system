@@ -30,6 +30,7 @@ export async function listQuotes(req: Request, res: Response): Promise<void> {
     clientId: q.clientId as string | undefined,
     sellerId: q.sellerId as string | undefined,
     status: q.status as 'active' | 'cancelled' | undefined,
+    source: q.source as 'pos' | 'bot' | undefined,
     fromDate,
     toDate,
     search: q.search as string | undefined,

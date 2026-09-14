@@ -19,7 +19,8 @@ export async function closeCashShift(req: Request, res: Response): Promise<void>
   if (!req.user) throw new Error('Usuario no autenticado');
   const { id } = req.params;
   const { closingAmount, note } = req.body;
-  const result = await cashShiftsService.closeCashShift(req.schoolId!, id as string, req.user.sub, closingAmount, note);
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+  const result = await cashShiftsService.closeCashShift(req.schoolId!, id as string, req.user.sub, closingAmount, note, isAdmin);
   res.json(result);
 }
 

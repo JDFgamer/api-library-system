@@ -76,6 +76,7 @@ cashMovementSchema.index({ school: 1, createdAt: -1 });
 cashMovementSchema.index({ seller: 1, createdAt: -1 });
 
 cashMovementSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc, ret: any) => {
     ret.id = String(ret._id);
     delete ret._id;

@@ -13,11 +13,12 @@
     "seed:dev": "NODE_ENV=development tsx scripts/seed.ts",
     "seed:prod": "NODE_ENV=production tsx scripts/seed.ts",
     "create-superadmin": "tsx scripts/create-superadmin.ts",
+    "setup:bot": "tsx scripts/setup-bot.ts",
     "lint": "eslint . --ext .ts",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test": "NODE_ENV=test vitest",
+    "test:run": "NODE_ENV=test vitest run",
+    "test:coverage": "NODE_ENV=test vitest run --coverage",
+    "test:ui": "NODE_ENV=test vitest --ui"
   },
   "dependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -32,6 +33,7 @@
     "mercadopago": "^2.8.0",
     "mongoose": "^8.23.0",
     "nodemailer": "^6.9.13",
+    "openai": "^7.10.0",
     "typescript": "^5.7.3",
     "winston": "^3.13.0",
     "zod": "^4.3.6"

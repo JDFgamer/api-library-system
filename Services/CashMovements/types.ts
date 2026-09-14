@@ -1,4 +1,4 @@
-import type { CashMovementLean, CashMovementType, CashMovementCategory } from '../../models/CashMovement/index.js';
+import type { CashMovementLean, CashMovementCategory } from '../../models/CashMovement/index.js';
 
 export interface CashMovementListResult {
   items: CashMovementLean[];

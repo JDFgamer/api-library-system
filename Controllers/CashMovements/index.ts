@@ -68,7 +68,7 @@ export async function listCashMovements(req: Request, res: Response): Promise<vo
     sellerId: getOptionalString(query, 'sellerId'),
     cashShiftId: getOptionalString(query, 'cashShiftId'),
     type: getOptionalString(query, 'type') as 'in' | 'out' | undefined,
-    category: getOptionalString(query, 'category') as any,
+    category: getOptionalString(query, 'category') as 'lunch' | 'supplies' | 'personal_withdrawal' | 'change' | 'expense' | 'other' | undefined,
     fromDate: getOptionalString(query, 'fromDate') ? new Date(getOptionalString(query, 'fromDate')!) : undefined,
     toDate: getOptionalString(query, 'toDate') ? new Date(getOptionalString(query, 'toDate')!) : undefined,
     page: getOptionalNumber(query, 'page', 1),

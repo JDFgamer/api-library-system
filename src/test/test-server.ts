@@ -1,4 +1,15 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
+
+const TEST_JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
+
+type TestRequest = Request & {
+  user?: { sub?: string; role?: string };
+  schoolId?: string;
+  posId?: string;
+};
+
+type SaleItemLike = { product?: string; productId?: string; quantity: number };
 
 const app = express();
 
@@ -25,7 +36,7 @@ app.get('/health', (_req, res) => {
 // MIDDLEWARE DEFINITIONS (single declarations)
 // ============================================
 
-const authMiddleware = (req: any, res: any, next: any) => {
+const authMiddleware = (req: TestRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Token de autorización requerido' });
@@ -34,8 +45,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
   const token = authHeader.slice(7);
   try {
     const jwt = require('jsonwebtoken');
-    const secret = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
-    const payload = jwt.verify(token, secret);
+    const payload = jwt.verify(token, TEST_JWT_SECRET);
     req.user = payload;
     req.schoolId = payload.schoolId;
     req.posId = payload.posId;
@@ -45,21 +55,21 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
-const requireAdmin = (req: any, res: any, next: any) => {
+const requireAdmin = (req: TestRequest, res: Response, next: NextFunction) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: 'AUTHORIZATION_ERROR', message: 'Rol insuficiente para esta acción' });
   }
   next();
 };
 
-const requireAdminOrSeller = (req: any, res: any, next: any) => {
+const requireAdminOrSeller = (req: TestRequest, res: Response, next: NextFunction) => {
   if (!req.user || !['admin', 'seller'].includes(req.user.role)) {
     return res.status(403).json({ error: 'AUTHORIZATION_ERROR', message: 'Rol insuficiente para esta acción' });
   }
   next();
 };
 
-const validateProduct = (req: any, res: any, next: any) => {
+const validateProduct = (req: TestRequest, res: Response, next: NextFunction) => {
   const { name, type, price, cost, stock } = req.body;
   
   if (!name || !type || price === undefined || stock === undefined) {
@@ -85,7 +95,7 @@ const validateProduct = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateStock = (req: any, res: any, next: any) => {
+const validateStock = (req: TestRequest, res: Response, next: NextFunction) => {
   const { quantity, operation } = req.body;
   
   if (quantity === undefined || !['add', 'set'].includes(operation)) {
@@ -99,15 +109,15 @@ const validateStock = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateId = (req: any, res: any, next: any) => {
-  const { id } = req.params;
+const validateId = (req: TestRequest, res: Response, next: NextFunction) => {
+  const id = String(req.params.id ?? '');
   if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'ID inválido' });
   }
   next();
 };
 
-const validateSalePreview = (req: any, res: any, next: any) => {
+const validateSalePreview = (req: TestRequest, res: Response, next: NextFunction) => {
   const { items, paymentMethod, amountReceived, clientId, discount } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -124,7 +134,7 @@ const validateSalePreview = (req: any, res: any, next: any) => {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Método de pago inválido' });
   }
   
-  const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0);
+  const subtotal = items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0);
   const total = subtotal - (discount || 0);
   
   if ((paymentMethod === 'cash' || paymentMethod === 'transfer') && (amountReceived === undefined || amountReceived < 0)) {
@@ -146,7 +156,7 @@ const validateSalePreview = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateSale = (req: any, res: any, next: any) => {
+const validateSale = (req: TestRequest, res: Response, next: NextFunction) => {
   const { items, paymentMethod, amountReceived, clientId, discount } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -163,7 +173,7 @@ const validateSale = (req: any, res: any, next: any) => {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Método de pago inválido' });
   }
   
-  const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0);
+  const subtotal = items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0);
   const total = subtotal - (discount || 0);
   
   if ((paymentMethod === 'cash' || paymentMethod === 'transfer') && (amountReceived === undefined || amountReceived < 0)) {
@@ -185,7 +195,7 @@ const validateSale = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateVoid = (req: any, res: any, next: any) => {
+const validateVoidReq = (req: TestRequest, res: Response, next: NextFunction) => {
   const { reason } = req.body;
   if (!reason || reason.trim() === '') {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Motivo requerido' });
@@ -193,41 +203,7 @@ const validateVoid = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateReturn = (req: any, res: any, next: any) => {
-  const { reason, items, method } = req.body;
-  
-  if (!reason || reason.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Motivo requerido' });
-  }
-  
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Items requeridos para devolución' });
-  }
-  
-  if (!['cash', 'credit'].includes(method)) {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Método de devolución inválido' });
-  }
-  
-  next();
-};
-
-const validateSaleId = (req: any, res: any, next: any) => {
-  const { id } = req.params;
-  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'ID de venta inválido' });
-  }
-  next();
-};
-
-const validateVoidReq = (req: any, res: any, next: any) => {
-  const { reason } = req.body;
-  if (!reason || reason.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Motivo requerido' });
-  }
-  next();
-};
-
-const validateReturnReq = (req: any, res: any, next: any) => {
+const validateReturnReq = (req: TestRequest, res: Response, next: NextFunction) => {
   const { reason, items, method } = req.body;
   
   if (!reason || reason.trim() === '') {
@@ -248,10 +224,6 @@ const validateReturnReq = (req: any, res: any, next: any) => {
 // ============================================
 // ROUTES
 // ============================================
-
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Auth routes
 app.use('/auth', (req, res) => {
@@ -412,7 +384,7 @@ app.use('/sales', authMiddleware);
 
 app.post('/sales/preview', validateSalePreview, (req, res) => {
   res.json({
-    items: req.body.items.map((item: any) => ({
+    items: req.body.items.map((item: SaleItemLike) => ({
       product: item.product,
       name: 'Test Product',
       type: 'product',
@@ -420,11 +392,11 @@ app.post('/sales/preview', validateSalePreview, (req, res) => {
       unitPrice: 1000,
       subtotal: item.quantity * 1000,
     })),
-    subtotal: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0),
+    subtotal: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0),
     discount: req.body.discount || 0,
-    total: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0),
+    total: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0),
     amountReceived: req.body.amountReceived,
-    change: req.body.amountReceived ? req.body.amountReceived - (req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0)) : 0,
+    change: req.body.amountReceived ? req.body.amountReceived - (req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0)) : 0,
     paymentMethod: req.body.paymentMethod,
     creditBalanceAfter: req.body.paymentMethod === 'credit' ? 5000 : undefined,
   });
@@ -434,7 +406,7 @@ app.post('/sales', authMiddleware, requireAdminOrSeller, validateSale, (req, res
   res.status(201).json({
     id: 'new-sale-id',
     number: 1,
-    items: req.body.items.map((item: any) => ({
+    items: req.body.items.map((item: SaleItemLike) => ({
       product: item.product,
       name: 'Test Product',
       type: 'product',
@@ -442,11 +414,11 @@ app.post('/sales', authMiddleware, requireAdminOrSeller, validateSale, (req, res
       unitPrice: 1000,
       subtotal: item.quantity * 1000,
     })),
-    subtotal: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0),
+    subtotal: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0),
     discount: req.body.discount || 0,
-    total: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0),
+    total: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0),
     amountReceived: req.body.amountReceived || 0,
-    change: req.body.amountReceived ? req.body.amountReceived - (req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0)) : 0,
+    change: req.body.amountReceived ? req.body.amountReceived - (req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0) - (req.body.discount || 0)) : 0,
     paymentMethod: req.body.paymentMethod,
     type: 'sale',
     client: req.body.clientId,
@@ -497,7 +469,7 @@ app.post('/sales/:id/return', validateId, validateReturnReq, (req, res) => {
   res.status(201).json({
     id: 'return-sale-id',
     number: 2,
-    items: req.body.items.map((item: any) => ({
+    items: req.body.items.map((item: SaleItemLike) => ({
       product: item.productId,
       name: 'Test Product',
       type: 'product',
@@ -505,9 +477,9 @@ app.post('/sales/:id/return', validateId, validateReturnReq, (req, res) => {
       unitPrice: 1000,
       subtotal: item.quantity * 1000,
     })),
-    subtotal: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0),
+    subtotal: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0),
     discount: 0,
-    total: req.body.items.reduce((sum: number, item: any) => sum + (item.quantity * 1000), 0),
+    total: req.body.items.reduce((sum: number, item: SaleItemLike) => sum + (item.quantity * 1000), 0),
     amountReceived: 0,
     change: 0,
     paymentMethod: req.body.method,
@@ -523,90 +495,8 @@ app.post('/sales/:id/return', validateId, validateReturnReq, (req, res) => {
   });
 });
 
-app.get('/sales/summary', (req, res) => {
-  res.json({
-    salesToday: 0,
-    salesGrowth: 0,
-    totalRevenue: 0,
-    returnsCount: 0,
-    returnsAmount: 0,
-    averageTicket: 0,
-  });
-});
-
-// Auth routes
-app.use('/auth', (req, res) => {
-  if (req.method === 'POST' && req.path === '/login') {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Datos de entrada inválidos' });
-    }
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Credenciales inválidas' });
-  }
-  
-  if (req.method === 'POST' && req.path === '/register') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Datos de entrada inválidos' });
-  }
-  
-  if (req.method === 'POST' && req.path === '/refresh') {
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Token de autorización requerido' });
-  }
-  
-  if (req.method === 'GET' && req.path === '/me') {
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Token de autorización requerido' });
-  }
-  
-  return res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint no encontrado' });
-});
-
-// Products routes
-app.use('/products', authMiddleware);
-
-app.post('/products', requireAdmin, validateProduct, (req, res) => {
-  res.status(201).json({ 
-    id: 'new-product-id',
-    ...req.body,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-});
-
-app.get('/products', (req, res) => {
-  res.json({
-    items: [],
-    total: 0,
-    page: Number(req.query.page) || 1,
-    limit: Number(req.query.limit) || 20,
-    totalPages: 0,
-  });
-});
-
-app.get('/products/:id', validateId, (req, res) => {
-  res.status(404).json({ error: 'NOT_FOUND', message: 'Producto no encontrado' });
-});
-
-app.patch('/products/:id', requireAdmin, validateId, validateProduct, (req, res) => {
-  res.json({ 
-    id: req.params.id,
-    ...req.body,
-    updatedAt: new Date().toISOString(),
-  });
-});
-
-app.delete('/products/:id', requireAdmin, validateId, (req, res) => {
-  res.status(204).send();
-});
-
-app.patch('/products/:id/stock', authMiddleware, requireAdminOrSeller, validateId, validateStock, (req, res) => {
-  res.json({
-    id: req.params.id,
-    stock: req.body.operation === 'add' ? 10 : req.body.quantity,
-  });
-});
-
 // Clients routes
-const validateClient = (req: any, res: any, next: any) => {
+const validateClient = (req: TestRequest, res: Response, next: NextFunction) => {
   const { fullName, dni, phone } = req.body;
   
   if (!fullName || !dni) {
@@ -621,15 +511,6 @@ const validateClient = (req: any, res: any, next: any) => {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Teléfono inválido (10 dígitos)' });
   }
   
-  next();
-};
-
-const validateClientSearch = (req: any, res: any, next: any) => {
-  const q = req.query.q;
-  const query = Array.isArray(q) ? q[0] : q;
-  if (!query || query.trim() === '') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Query de búsqueda requerida' });
-  }
   next();
 };
 
@@ -689,7 +570,7 @@ app.delete('/clients/:id', requireAdmin, validateId, (req, res) => {
 });
 
 // Users routes
-const validateUser = (req: any, res: any, next: any) => {
+const validateUser = (req: TestRequest, res: Response, next: NextFunction) => {
   const { name, email, password, role } = req.body;
   
   if (!name || !email || !password || !role) {
@@ -711,7 +592,7 @@ const validateUser = (req: any, res: any, next: any) => {
   next();
 };
 
-const validatePasswordChange = (req: any, res: any, next: any) => {
+const validatePasswordChange = (req: TestRequest, res: Response, next: NextFunction) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Contraseña actual y nueva requeridas' });
@@ -768,7 +649,7 @@ app.post('/users/:id/change-password', requireAdmin, validateId, validatePasswor
 });
 
 // CashShifts routes
-const validateCashShiftOpen = (req: any, res: any, next: any) => {
+const validateCashShiftOpen = (req: TestRequest, res: Response, next: NextFunction) => {
   const { openingAmount } = req.body;
   if (openingAmount === undefined || openingAmount <= 0) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Monto de apertura requerido y mayor a 0' });
@@ -776,7 +657,7 @@ const validateCashShiftOpen = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateCashShiftClose = (req: any, res: any, next: any) => {
+const validateCashShiftClose = (req: TestRequest, res: Response, next: NextFunction) => {
   const { closingAmount } = req.body;
   if (closingAmount === undefined || closingAmount < 0) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Monto de cierre requerido y no negativo' });
@@ -784,7 +665,7 @@ const validateCashShiftClose = (req: any, res: any, next: any) => {
   next();
 };
 
-const validateCashMovement = (req: any, res: any, next: any) => {
+const validateCashMovement = (req: TestRequest, res: Response, next: NextFunction) => {
   const { type, category, amount, description } = req.body;
   if (!type || !['in', 'out'].includes(type)) {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Tipo requerido (in/out)' });
@@ -1098,41 +979,11 @@ app.delete('/pos/:id', (req, res) => {
   res.status(204).send();
 });
 
-// Auth routes
-app.use('/auth', (req, res) => {
-  if (req.method === 'POST' && req.path === '/login') {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Datos de entrada inválidos' });
-    }
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Credenciales inválidas' });
-  }
-  
-  if (req.method === 'POST' && req.path === '/register') {
-    return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Datos de entrada inválidos' });
-  }
-  
-  if (req.method === 'POST' && req.path === '/refresh') {
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Token de autorización requerido' });
-  }
-  
-  if (req.method === 'GET' && req.path === '/me') {
-    return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'Token de autorización requerido' });
-  }
-  
-  return res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint no encontrado' });
-});
-
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.use((_req, res) => {
   res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint no encontrado' });
 });
 
-app.use((error: Error, _req: any, res: any, _next: any) => {
+app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (error.name === 'ZodError') {
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Datos de entrada inválidos' });
   }
@@ -1140,4 +991,7 @@ app.use((error: Error, _req: any, res: any, _next: any) => {
   res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', message: 'Error interno del servidor' });
 });
 
-export default app;
+// Reutilizamos un único server por proceso para que supertest no cree/destruya
+// un server por request (eso causaba flakiness intermitente).
+const testServer = app.listen(0);
+export default testServer;
