@@ -267,3 +267,93 @@ export const setSchoolBotStatus = async (input: SetSchoolBotInput): Promise<Scho
   if (!status) throw new NotFoundError('Negocio no encontrado');
   return status;
 };
+
+/**
+ * Mensaje offline customer-facing (sin jerga administrativa).
+ * Único origen de verdad para el copy — cambiar aquí actualiza todos los puntos.
+ */
+export const BOT_OFFLINE_MESSAGE =
+  'En este momento no estamos disponibles, pero volvemos pronto. ¡Gracias por tu paciencia!';
+
+/**
+ * Verificación pura de botKey contra hash (timing-safe).
+ * Reutilizable por validateBotKeyAgainst y por el flujo offline del widget.
+ */
+export const verifyBotKey = async (botKeyHash: string, botKey: string): Promise<boolean> => {
+  if (!botKeyHash) return false;
+  const inputHash = await hashBotKey(botKey);
+  return safeEqual(inputHash, botKeyHash);
+};
+
+/**
+ * Estado del widget para el endpoint público /ai/config.
+ * Unión discriminada — el controller ramifica sin parsear strings (G26, G27).
+ */
+export type WidgetState =
+  | { status: 'not_found' }
+  | { status: 'offline'; schoolId: string; businessName: string; botKeyHash: string }
+  | { status: 'online'; config: BotPublicConfig };
+
+/**
+ * Obtiene el estado del widget para un slug, SIN filtrar por school.active.
+ * Distingue: no existe | existe pero offline (school inactiva o botEnabled=false) | online.
+ */
+export const getWidgetState = async (slug: string): Promise<WidgetState> => {
+  const school = await SchoolModel.findOne({ slug }).lean();
+  if (!school) return { status: 'not_found' };
+
+  const settings = await SettingModel.findOne({ school: school._id }).lean();
+  if (!settings) return { status: 'not_found' };
+
+  const schoolActive = Boolean(school.active);
+  const botEnabled = Boolean(settings.botEnabled);
+  const hasKeyHash = Boolean(settings.botKeyHash);
+
+  const isOnline = schoolActive && botEnabled && hasKeyHash;
+
+  if (isOnline) {
+    const config = toPublicConfig({
+      schoolId: String(school._id),
+      businessName: school.name,
+      settings: settings as unknown as SettingLean,
+    });
+    return { status: 'online', config };
+  }
+
+  return {
+    status: 'offline',
+    schoolId: String(school._id),
+    businessName: school.name,
+    botKeyHash: settings.botKeyHash ?? '',
+  };
+};
+
+/**
+ * Obtiene la config pública para el widget (endpoint /ai/config).
+ * - slug inexistente → 404 (NotFoundError)
+ * - clave inválida → 400 (ValidationError)
+ * - offline → 200 { available: false, businessName }
+ * - online → 200 { available: true, ...config }
+ */
+export const getPublicWidgetConfig = async (slug: string, botKey: string): Promise<{ available: true; config: BotPublicConfig } | { available: false; businessName: string }> => {
+  const state = await getWidgetState(slug);
+
+  if (state.status === 'not_found') {
+    throw new NotFoundError('Negocio no encontrado');
+  }
+
+  if (state.status === 'offline') {
+    const keyValid = await verifyBotKey(state.botKeyHash, botKey);
+    if (!keyValid) {
+      throw new ValidationError('Credencial del bot inválida');
+    }
+    return { available: false, businessName: state.businessName };
+  }
+
+  // online
+  const keyValid = await verifyBotKey(state.config.botKeyHash, botKey);
+  if (!keyValid) {
+    throw new ValidationError('Credencial del bot inválida');
+  }
+  return { available: true, config: state.config };
+};

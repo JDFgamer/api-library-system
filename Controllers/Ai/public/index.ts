@@ -30,12 +30,6 @@ interface ChatBody {
   message: string;
 }
 
-const resolvePublicChat = async (body: ChatBody) => {
-  const config = await aiConfigService.getPublicConfigBySlug(body.slug);
-  await aiConfigService.validateBotKeyAgainst(config, body.botKey);
-  return config;
-};
-
 const checkRateLimit = async (ip: string | undefined, slug: string): Promise<boolean> => {
   const key = `ai:rl:${ip ?? 'unknown'}:${slug}`;
   const count = await memorySessionStore.incrementRateLimit(key, RATE_LIMIT_WINDOW_MS);
@@ -44,8 +38,55 @@ const checkRateLimit = async (ip: string | undefined, slug: string): Promise<boo
 
 export const runSseChat = async (req: Request, res: Response) => {
   const body = req.body as ChatBody;
-  const config = await resolvePublicChat(body);
 
+  // Resolver config y validar key — si offline, devolvemos SSE con mensaje canned (0 tokens)
+  let widgetConfig: Awaited<ReturnType<typeof aiConfigService.getPublicWidgetConfig>>;
+  try {
+    widgetConfig = await aiConfigService.getPublicWidgetConfig(body.slug, body.botKey);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'BOT_OFFLINE') {
+      // Rate limit antes de responder offline (evita amplificación)
+      if (!(await checkRateLimit(req.ip, body.slug))) {
+        res.status(429).json({ error: 'RATE_LIMIT', message: 'Demasiadas solicitudes, esperá un momento' });
+        return;
+      }
+      // Respuesta SSE canned — cliente la renderiza como burbuja normal
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      sseEvent(res, 'text', { content: aiConfigService.BOT_OFFLINE_MESSAGE });
+      sseEvent(res, 'done', { offline: true });
+      res.end();
+      return;
+    }
+    throw error;
+  }
+
+  if (!widgetConfig.available) {
+    // Rate limit antes de responder offline
+    if (!(await checkRateLimit(req.ip, body.slug))) {
+      res.status(429).json({ error: 'RATE_LIMIT', message: 'Demasiadas solicitudes, esperá un momento' });
+      return;
+    }
+    // Respuesta SSE canned
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    sseEvent(res, 'text', { content: aiConfigService.BOT_OFFLINE_MESSAGE });
+    sseEvent(res, 'done', { offline: true });
+    res.end();
+    return;
+  }
+
+  const config = widgetConfig.config;
+
+  // Online path — validar rate limit
   if (!(await checkRateLimit(req.ip, body.slug))) {
     res.status(429).json({ error: 'RATE_LIMIT', message: 'Demasiadas solicitudes, esperá un momento' });
     return;
@@ -285,10 +326,16 @@ export const runSseChat = async (req: Request, res: Response) => {
 
 export const getPublicBotConfig = async (req: Request, res: Response) => {
   const { slug, botKey } = req.query as { slug: string; botKey: string };
-  const config = await aiConfigService.getPublicConfigBySlug(slug);
-  await aiConfigService.validateBotKeyAgainst(config, botKey);
+  const result = await aiConfigService.getPublicWidgetConfig(slug, botKey);
 
+  if (!result.available) {
+    res.json({ available: false, businessName: result.businessName });
+    return;
+  }
+
+  const config = result.config;
   res.json({
+    available: true,
     businessName: config.businessName,
     greeting: config.greeting,
     quickReplies: config.quickReplies,

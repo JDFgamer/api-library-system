@@ -57,6 +57,20 @@ export class PaymentError extends AppError {
   }
 }
 
+export class SchoolDisabledError extends AppError {
+  constructor(message = 'Esta escuela está deshabilitada por el administrador') {
+    super(message, 403, 'SCHOOL_DISABLED');
+    Object.setPrototypeOf(this, SchoolDisabledError.prototype);
+  }
+}
+
+export class PosDisabledError extends AppError {
+  constructor(message = 'Este punto de venta está deshabilitado por el administrador') {
+    super(message, 403, 'POS_DISABLED');
+    Object.setPrototypeOf(this, PosDisabledError.prototype);
+  }
+}
+
 export const errorCodes = {
   AUTHENTICATION_ERROR: 401,
   AUTHORIZATION_ERROR: 403,
@@ -64,4 +78,6 @@ export const errorCodes = {
   VALIDATION_ERROR: 400,
   CONFLICT_ERROR: 409,
   PAYMENT_ERROR: 402,
+  SCHOOL_DISABLED: 403,
+  POS_DISABLED: 403,
 } as const;

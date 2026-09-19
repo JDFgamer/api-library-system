@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
 import { UserModel } from '../../models/User/index.js';
-import { AuthenticationError, NotFoundError } from '../../utils/errors.js';
+import { SchoolModel } from '../../models/School/index.js';
+import { PosModel } from '../../models/Pos/index.js';
+import { AuthenticationError, NotFoundError, SchoolDisabledError, PosDisabledError } from '../../utils/errors.js';
 import { UserRole } from '../../models/User/index.js';
 
 export interface AuthTokens {
@@ -54,6 +56,19 @@ export async function loginWithPin(pin: string, schoolId: string): Promise<Login
     throw new AuthenticationError('PIN inválido');
   }
 
+  // Validar estado de la escuela y POS DESPUÉS de validar credenciales (anti-enumeración)
+  const school = await SchoolModel.findById(matchedUser.school).lean();
+  if (!school || !school.active) {
+    throw new SchoolDisabledError();
+  }
+
+  if (matchedUser.pos) {
+    const pos = await PosModel.findById(matchedUser.pos).lean();
+    if (!pos || !pos.active) {
+      throw new PosDisabledError();
+    }
+  }
+
   matchedUser.lastLoginAt = new Date();
   await matchedUser.save();
 
@@ -95,6 +110,22 @@ export async function loginWithEmail(email: string, password: string): Promise<L
     throw new AuthenticationError('Credenciales inválidas');
   }
 
+  // Validar estado de la escuela y POS DESPUÉS de validar credenciales (anti-enumeración)
+  // Superadmin no tiene school asignada → saltar validación
+  if (user.role !== 'superadmin' && user.school) {
+    const school = await SchoolModel.findById(user.school).lean();
+    if (!school || !school.active) {
+      throw new SchoolDisabledError();
+    }
+  }
+
+  if (user.pos) {
+    const pos = await PosModel.findById(user.pos).lean();
+    if (!pos || !pos.active) {
+      throw new PosDisabledError();
+    }
+  }
+
   user.lastLoginAt = new Date();
   await user.save();
 
@@ -122,6 +153,7 @@ export async function loginWithEmail(email: string, password: string): Promise<L
 /**
  * Refresca el access token re-leyendo datos actuales desde DB.
  * No confía solo en los claims del refresh token.
+ * También valida que la escuela y el POS sigan activos.
  */
 export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
   try {
@@ -137,6 +169,21 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
       throw new AuthenticationError('Usuario no encontrado o inactivo');
     }
 
+    // Validar estado de la escuela y POS al refrescar
+    if (payload.role !== 'superadmin' && user.school) {
+      const school = await SchoolModel.findById(user.school).lean();
+      if (!school || !school.active) {
+        throw new SchoolDisabledError();
+      }
+    }
+
+    if (user.pos) {
+      const pos = await PosModel.findById(user.pos).lean();
+      if (!pos || !pos.active) {
+        throw new PosDisabledError();
+      }
+    }
+
     const schoolId = user.school?.toString();
     const accessToken = jwt.sign(
       { sub: user._id.toString(), role: user.role, schoolId, posId: user.pos?.toString() },
@@ -145,7 +192,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     );
 
     return { accessToken };
-  } catch {
+  } catch (error) {
+    // Re-lanzar errores semánticos conocidos (no convertirlos a AuthenticationError)
+    if (error instanceof SchoolDisabledError || error instanceof PosDisabledError) {
+      throw error;
+    }
+    // Solo errores de JWT/verificación se convierten a AuthenticationError
     throw new AuthenticationError('Token de actualización inválido');
   }
 }
