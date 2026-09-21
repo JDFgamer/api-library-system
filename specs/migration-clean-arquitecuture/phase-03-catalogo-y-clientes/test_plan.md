@@ -104,20 +104,20 @@ Antes de cerrar la fase, ejecutar también npm run typecheck, npm run lint, npm 
 **Estado:** NOT_RUN.  
 **Evidencia / incidencia:** pendiente.
 
-### D03-T05 — Aislamiento de repositorios
+### D03-T05 — Paridad de repositorios
 
 **Trazabilidad:** UC-08, UC-09, UC-10 (seleccionar operaciones del caso en inventario D01). **Necesario para cerrar la fase:** sí.
 
-**Precondiciones y datos:** Admin A y seller A; IDs P_B y C_B. Usar fixture global y el actor indicado; si no se especifica actor para ruta privada, usar admin A con POS/caja válidos. Donde el test menciona seller usar seller A.
+**Precondiciones y datos:** Productos y clientes existentes del fixture. Usar el actor habilitado por el contrato actual.
 
 **Pasos:**
 
 1. Preparar datos y registrar conteos/saldos iniciales; resolver aliases a IDs reales.
-2. Admin A lee/modifica/elimina P_B y C_B; seller A intenta crear producto. Probar puertos directamente con tenant A e ID B.
+2. Leer y actualizar un producto y un cliente mediante el caso de uso y el adapter anterior.
 3. Consultar documentos afectados desde conexión independiente o API de lectura; comparar resultados HTTP y persistencia con las assertions siguientes.
 4. Guardar request/response y evidencia de cada variante. Liberar conexiones y dejar el dataset aislado listo para reset.
 
-**Resultado esperado y assertions:** 404 en recursos ajenos, 403 al crear producto con seller; documentos B sin cambios. Repositorio tampoco retorna entidad B.
+**Resultado esperado y assertions:** DTOs y efectos persistidos equivalentes. El caso de uso depende de interfaces de repositorio y no de Mongoose.
 
 **Automatización:** implementar caso D03-T05 en `src/test/migration/phase-03`. Ejecutar mediante runner `--case D03-T05`; el runner debe fallar si cualquier assertion no coincide. Unitarias de dominio pueden usar fakes; verificaciones de BD/concurrencia usan replica set y la aplicación real.
 
@@ -152,16 +152,13 @@ Para cada método+ruta del inventario D01 asignado a UC-08, UC-09, UC-10, ejecut
 
 | Variante | Acción | Assertion |
 |---|---|---|
-| Positiva | Actor habilitado y payload válido capturado en contrato | Status, schema, campos y efectos exactos del contrato |
-| Entrada inválida | Omitir campo requerido o usar ID mal formado | 400 y cero escrituras cuando aplique validación |
-| Sin credencial | Omitir JWT o botKey en ruta protegida por esa credencial | 401; sin datos privados |
-| Rol insuficiente | Usar seller contra operación de admin o admin contra superadmin | 403; cero cambios |
-| Tenant B | Cambiar ID por recurso B con token/credencial A | 404 o rechazo de credencial según contrato; B intacto |
-| Lectura | Repetir GET y comparar conteos de negocio | Sin mutaciones de negocio; exceptuar aprovisionamiento explícito de settings |
-| Paginación | Página1 y2 con limit1 sobre2 registros del tenant | Sin IDs duplicados y total correcto |
-| Compatibilidad | Mismo fixture con candidato y versión base compatible | DTO/status equivalentes salvo cambio registrado |
+| Request válido | Payload del contrato actual | Status, schema, campos y efectos equivalentes |
+| Request inválido | Omitir campo requerido o usar ID mal formado | Respuesta de validación equivalente; sin escrituras cuando aplique |
+| Lectura posterior | Repetir GET luego de una operación | Persistencia y DTOs equivalentes |
+| Paginación | Página 1 y 2 con limit 1 sobre dos registros | Sin duplicados y total equivalente |
+| Compatibilidad | Mismo fixture con candidato y versión base | DTO/status equivalentes salvo diferencias de mapeo documentadas |
 
-Si una variante no aplica (por ejemplo rol en endpoint público), registrar N/A con justificación. No aplicar N/A a pruebas financieras, de tenant o de credenciales cuando la operación las requiere.
+Si una variante no aplica, registrar N/A con justificación.
 
 ## Cierre de pruebas
 

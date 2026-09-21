@@ -117,7 +117,7 @@ Antes de cerrar la fase, ejecutar también npm run typecheck, npm run lint, npm 
 3. Consultar documentos afectados desde conexión independiente o API de lectura; comparar resultados HTTP y persistencia con las assertions siguientes.
 4. Guardar request/response y evidencia de cada variante. Liberar conexiones y dejar el dataset aislado listo para reset.
 
-**Resultado esperado y assertions:** Primera devolución200, documento con number y originalSale, stock9, reembolso100. Exceso409 sin cambios. Anulación revierte total y stock una vez; segunda409. No se admite devolución sobre venta anulada.
+**Resultado esperado y assertions:** La devolución y la anulación conservan sus respuestas, relaciones y efectos contables actuales. Los documentos generados se mapean mediante el repositorio y las reglas residen en el caso de uso.
 
 **Automatización:** implementar caso D05-T05 en `src/test/migration/phase-05`. Ejecutar mediante runner `--case D05-T05`; el runner debe fallar si cualquier assertion no coincide. Unitarias de dominio pueden usar fakes; verificaciones de BD/concurrencia usan replica set y la aplicación real.
 
@@ -138,7 +138,7 @@ Antes de cerrar la fase, ejecutar también npm run typecheck, npm run lint, npm 
 3. Consultar documentos afectados desde conexión independiente o API de lectura; comparar resultados HTTP y persistencia con las assertions siguientes.
 4. Guardar request/response y evidencia de cada variante. Liberar conexiones y dejar el dataset aislado listo para reset.
 
-**Resultado esperado y assertions:** Genérica201 y efecto según contrato contable documentado; número obligatorio presente. Nota201 vinculada al original; repetición409 o replay de misma clave, nunca doble compensación. Matriz de stock/caja/crédito fijada antes de implementar este caso.
+**Resultado esperado y assertions:** La devolución genérica y la nota de crédito preservan sus contratos y relaciones actuales. Sus efectos se verifican contra el adapter anterior y se ejecutan a través del caso de uso migrado.
 
 **Automatización:** implementar caso D05-T06 en `src/test/migration/phase-05`. Ejecutar mediante runner `--case D05-T06`; el runner debe fallar si cualquier assertion no coincide. Unitarias de dominio pueden usar fakes; verificaciones de BD/concurrencia usan replica set y la aplicación real.
 
@@ -215,16 +215,13 @@ Para cada método+ruta del inventario D01 asignado a UC-13, UC-14, UC-15, ejecut
 
 | Variante | Acción | Assertion |
 |---|---|---|
-| Positiva | Actor habilitado y payload válido capturado en contrato | Status, schema, campos y efectos exactos del contrato |
-| Entrada inválida | Omitir campo requerido o usar ID mal formado | 400 y cero escrituras cuando aplique validación |
-| Sin credencial | Omitir JWT o botKey en ruta protegida por esa credencial | 401; sin datos privados |
-| Rol insuficiente | Usar seller contra operación de admin o admin contra superadmin | 403; cero cambios |
-| Tenant B | Cambiar ID por recurso B con token/credencial A | 404 o rechazo de credencial según contrato; B intacto |
-| Lectura | Repetir GET y comparar conteos de negocio | Sin mutaciones de negocio; exceptuar aprovisionamiento explícito de settings |
-| Paginación | Página1 y2 con limit1 sobre2 registros del tenant | Sin IDs duplicados y total correcto |
-| Compatibilidad | Mismo fixture con candidato y versión base compatible | DTO/status equivalentes salvo cambio registrado |
+| Request válido | Payload del contrato actual | Status, schema, campos y efectos equivalentes |
+| Request inválido | Omitir campo requerido o usar ID mal formado | Respuesta de validación equivalente; sin escrituras cuando aplique |
+| Lectura posterior | Repetir GET luego de una operación | Persistencia y DTOs equivalentes |
+| Paginación | Página 1 y 2 con limit 1 sobre dos registros | Sin duplicados y total equivalente |
+| Compatibilidad | Mismo fixture con candidato y versión base | DTO/status equivalentes salvo diferencias de mapeo documentadas |
 
-Si una variante no aplica (por ejemplo rol en endpoint público), registrar N/A con justificación. No aplicar N/A a pruebas financieras, de tenant o de credenciales cuando la operación las requiere.
+Si una variante no aplica, registrar N/A con justificación.
 
 ## Cierre de pruebas
 

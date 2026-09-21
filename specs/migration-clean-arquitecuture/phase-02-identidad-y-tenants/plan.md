@@ -9,10 +9,9 @@ Tener probados los cambios de D01 necesarios para esta fase. Revisar las decisio
 ## Pasos de implementación
 
 1. Crear TenantContext y puertos de hash, JWT y repositorios; implementar casos de uso de identidad.
-2. Separar tipo access/refresh; definir rotación, almacenamiento de revocaciones y rechazo de tokens legacy ambiguos.
-3. Aplicar permisos globales sólo a superadmin; admin opera su escuela; documentar cambios de seguridad en contrato.
-4. Migrar CRUD de usuarios, admins, escuelas, POS y settings, con DTOs explícitos y allowlist de configuración.
-5. Crear settings válidos al aprovisionar escuela; añadir tests de escuela/POS/usuario inactivos.
+2. Migrar la emisión, renovación y lectura de sesión preservando el contrato público actual.
+3. Migrar CRUD de usuarios, admins, escuelas, POS y settings mediante casos de uso, DTOs y repositorios.
+4. Documentar mappers de persistencia y las dependencias entre identidad, escuelas, POS y configuración.
 6. Implementar todos los escenarios de test_plan.md y el contrato de repositorios; mantener exports al final.
 7. Completar el inventario método+ruta → caso de uso → test y registrar diferencias de contrato.
 
@@ -25,11 +24,11 @@ Tener probados los cambios de D01 necesarios para esta fase. Revisar las decisio
 
 ## Datos a tener en cuenta
 
-Añadir almacenamiento de refresh y campos opcionales. Crear settings faltantes de forma idempotente. Auditoría previa de duplicados; no borrar usuarios ni escuelas.
+Mantener colecciones e IDs existentes. Cualquier campo adicional de soporte para los adapters debe ser opcional y compatible con los documentos actuales.
 
 ## Nota de recuperación
 
-Volver a artefacto compatible que conserve endurecimiento de seguridad; invalidar sesiones nuevas si es necesario y exigir login. No volver al refresh ambiguo ni restaurar acceso entre escuelas.
+Volver al binding anterior compatible y comprobar que puede leer sesiones, usuarios, escuelas, POS y configuración creados por el candidato.
 
 Conservar la referencia al commit compatible anterior y la evidencia de las pruebas de recuperación aplicables.
 

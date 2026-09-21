@@ -29,13 +29,13 @@ Campos opcionales quoteId/idempotencia y nuevo formato de código coexistente. N
 ## Aceptación verificable
 
 - D06-T01: Cotización básica; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D06-T02: Ítems acumulados y tenant; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D06-T02: Ítems y mapeo de cotización; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D06-T03: Pago y recuperación; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D06-T04: Estados y aviso público; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D06-T05: Códigos y autenticación pública; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D06-T06: Paridad de pedidos y rollback; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con pruebas de contrato y paridad aplicables.
 
 ## Fuera de esta fase
 

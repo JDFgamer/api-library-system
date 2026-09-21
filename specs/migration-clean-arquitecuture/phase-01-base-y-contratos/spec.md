@@ -34,7 +34,7 @@ No cambiar documentos de negocio. Replica set y datasets aislados de prueba.
 - D01-T04: Transacción real; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D01-T05: Cobertura y arquitectura; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con pruebas de contrato y paridad aplicables.
 
 ## Fuera de esta fase
 

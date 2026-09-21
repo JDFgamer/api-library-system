@@ -12,7 +12,7 @@ Identificar el estado actual del código y preparar datos de prueba aislados. Re
 2. Crear harness con Supertest sobre createApp real y MongoMemoryReplSet; reemplazar gradualmente el servidor mock.
 3. Capturar OpenAPI y fixtures de contratos desde rutas, schemas y controllers; incluir seguridad, aliases y protocolo SSE.
 4. Corregir coverage para incluir producción en raíz y src; introducir pruebas de límites de dependencias.
-5. Implementar fixtures, failpoints y runners propuestos en el protocolo global; clasificar divergencias actuales como bugs conocidos.
+5. Implementar fixtures, failpoints y runners propuestos en el protocolo global; registrar diferencias de contrato para revisarlas fuera de la migración.
 6. Implementar todos los escenarios de test_plan.md y el contrato de repositorios; mantener exports al final.
 7. Completar el inventario método+ruta → caso de uso → test y registrar diferencias de contrato.
 

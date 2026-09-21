@@ -8,11 +8,11 @@ Tener probados los cambios de D05 necesarios para esta fase. Revisar las decisio
 
 ## Pasos de implementación
 
-1. Crear Order/Quote con transiciones explícitas; validar total acumulado de artículos y tenant.
+1. Crear Order/Quote con transiciones explícitas y mappers del documento actual.
 2. Migrar endpoints públicos de pedidos y adaptador del bot hacia casos de uso.
-3. Hacer venta y confirmación de pago atómicas con relación única school+quote en venta.
+3. Conectar la confirmación de pago con el caso de uso financiero migrado.
 4. Definir diferencia entre aviso público de pago y confirmación financiera administrativa.
-5. Aceptar códigos PED-0000 existentes; ampliar validadores antes de emitir códigos largos; validar compatibilidad frontend.
+5. Mantener los códigos y validadores actuales durante esta fase; documentar cualquier evolución futura como cambio funcional separado.
 6. Implementar todos los escenarios de test_plan.md y el contrato de repositorios; mantener exports al final.
 7. Completar el inventario método+ruta → caso de uso → test y registrar diferencias de contrato.
 

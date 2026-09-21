@@ -4,7 +4,7 @@ Estado: propuesta documentada; implementación y despliegues pendientes.
 
 ## Objetivo y alcance
 
-Migrar toda la API a un monolito modular con dominio independiente, casos de uso explícitos, repositorios específicos y Unit of Work. Mantener contratos REST/SSE y datos existentes, registrando las correcciones funcionales y de seguridad como cambios deliberados. Este documento y [plan.md](plan.md) sustituyen el desglose preliminar de fases de [la propuesta original](../../docs/migracion-clean-architecture.md); conservan su orientación general.
+Migrar toda la API a un monolito modular con dominio independiente, casos de uso explícitos, repositorios específicos y Unit of Work. Mantener contratos REST/SSE y datos existentes. Este documento y [plan.md](plan.md) sustituyen el desglose preliminar de fases de [la propuesta original](../../docs/migracion-clean-architecture.md); conservan su orientación general.
 
 Se proponen **8 fases de trabajo para una sola persona con ayuda de IA**, sin fechas ni estimaciones. Cada fase puede requerir uno o varios cambios; publicar se decide según el avance probado. D01–D08 son identificadores de fase, mientras que el deploy ID real se registra por separado cuando se publica.
 
@@ -70,39 +70,9 @@ Los paths del catálogo se combinan con los prefijos de server.ts; no hay prefij
 
 Preservar aliases /auth/login-email y /auth/login, así como los paths montados /cash-movements/cash-shifts/:cashShiftId/movements y /cash-movements/cash-movements. D01 deberá producir un inventario exacto método+ruta: una fila por operación, schema de request, status/schema de response, autenticación, owner UC y prueba. La cobertura por prefijo de esta propuesta no reemplaza ese inventario ejecutable.
 
-## Compatibilidad y correcciones objetivo
+## Compatibilidad de la migración
 
-Compatibilidad significa conservar IDs, nombres de campos, unidades monetarias, tipos, paginación, aliases y protocolo SSE. No significa preservar los errores detectados. Cambios objetivo:
-
-| Cambio | Fase | Criterio |
-|---|---|---|
-| Tests sobre la app productiva y cobertura real | D01 | No aceptar cobertura 0/0 como evidencia |
-| Refresh tipado, permisos de escuelas y tenant | D02 | Rechazar escalamiento y acceso cruzado |
-| Settings válido y allowlist | D02 | Sin error required key/value; sin mass assignment |
-| Stock condicional y unicidad de caja | D03/D04 | Concurrencia no genera stock negativo ni cajas duplicadas |
-| Contadores, idempotencia, devolución con number | D05 | Sin doble efecto ni documento financiero inválido |
-| Aplicación de cobros y settled | D05 | Saldo por cliente coincide con deuda pendiente por venta |
-| Cotización con producto ajeno/cantidad acumulada | D06 | Rechazo sin mutación parcial |
-| Pago de pedido y cancelación de paid | D06 | Venta única y transición válida |
-| Reportes y filtros booleanos/fechas | D01/D08 | Datos y filtros coinciden con oráculo |
-
-Objetivo de errores: 400 entrada inválida, 401 identidad/credencial inválida, 403 rol insuficiente, 404 recurso inexistente o ajeno para un rol autorizado, 409 conflicto de estado/concurrencia/idempotencia. Las pruebas que introducen estos cambios verifican el objetivo; otros status exitosos se conservan desde el contrato capturado en D01.
-
-## Decisiones a cerrar antes de la fase correspondiente
-
-Estas decisiones tienen una propuesta inicial, pero afectan reglas de negocio y requieren quedar fijadas en los contratos antes de implementar/promover la fase. La documentación puede avanzar sin resolverlas; un test que dependa de una decisión sin fijar se marca BLOCKED.
-
-| Decisión | Propuesta inicial | Fase |
-|---|---|---|
-| Permisos de escuela | Superadmin gestiona global; admin sólo su escuela; seller usa resolución pública mínima | D02 |
-| Transición de tokens | Invalidar refresh legacy ambiguos y solicitar nuevo login; comunicar efecto al cliente | D02 |
-| Caja única | Una abierta por escuela+POS; revisar relación actual vendedor/POS y compatibilidad de clientes | D04 |
-| Nota de crédito vs devolución genérica | Fijar matriz explícita de stock, efectivo y deuda para evitar doble reversión | D05 |
-| Imputación y vencimiento | FIFO por antigüedad; fixture de vencimiento a30 días; no asumir que es regla actual | D05 |
-| Cotización y stock | Sin reserva al cotizar; validar stock al cobrar | D06 |
-| Aviso público de pago | Señal de intención, sin acreditación financiera; confirmación por admin | D06 |
-| Códigos nuevos | Lectura dual antes de emisión; comprobar consumidores frontend | D06 |
-| Fecha de reportes | Días de negocio en America/Argentina/Tucuman; registrar excepciones contractuales | D08 |
+Compatibilidad significa conservar IDs, nombres de campos, unidades monetarias, tipos, paginación, aliases y protocolo SSE mientras se reemplaza la estructura interna. Cada fase documenta sus mappers, puertos y pruebas de paridad. Las decisiones de negocio ya presentes se preservan durante la migración; los cambios funcionales se planifican por separado.
 
 ## Criterios globales de aceptación
 

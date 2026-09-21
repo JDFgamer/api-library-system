@@ -32,10 +32,10 @@ Conservar IDs, school, importes y colecciones. Índices nuevos sólo tras audito
 - D03-T02: Stock y concurrencia; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D03-T03: Filtros y stock bajo; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D03-T04: Clientes e historia; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D03-T05: Aislamiento de repositorios; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D03-T05: Paridad de repositorios; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D03-T06: Compatibilidad de datos e índices; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con pruebas de contrato y paridad aplicables.
 
 ## Fuera de esta fase
 

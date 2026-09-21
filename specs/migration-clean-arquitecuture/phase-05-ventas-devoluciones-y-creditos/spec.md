@@ -38,7 +38,7 @@ Contadores inicializados bajo pausa breve de escritores desde máximo actual; í
 - D05-T08: Deuda vencida y aislamiento; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D05-T09: Rollback financiero; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con pruebas de contrato y paridad aplicables.
 
 ## Fuera de esta fase
 

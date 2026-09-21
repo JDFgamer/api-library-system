@@ -9,11 +9,11 @@ Tener probados los cambios de D04 necesarios para esta fase. Revisar las decisio
 ## Pasos de implementación
 
 1. Implementar Money en centavos dentro del dominio; mantener importes decimales en API y almacenamiento mediante mappers durante transición.
-2. Crear casos de uso transaccionales; contadores atómicos por escuela; idempotencia persistida dentro de la transacción.
+2. Crear casos de uso transaccionales y puertos de persistencia para el agregado financiero.
 3. Migrar ventas y créditos conjuntamente; adaptar llamadas desde cotizaciones legado al nuevo caso de uso.
-4. Definir política de devolución parcial, anulaciones y notas sin doble compensación; conservar ambos endpoints de devolución.
-5. Implementar imputación de pagos por antigüedad propuesta, estados settled por venta y vencimientos configurados.
-6. Incluir Idempotency-Key en CORS; misma clave/payload reproduce respuesta; payload diferente=409; claves aisladas por tenant.
+4. Modelar ventas, devoluciones, anulaciones, notas de crédito, cobros y sus relaciones sin alterar las reglas actuales.
+5. Mantener las reglas actuales de imputación, estados y vencimientos mediante mappers y casos de uso explícitos.
+6. Documentar el contrato de reintentos de la API si ya existe; cualquier cambio funcional se planifica fuera de esta migración.
 7. Implementar todos los escenarios de test_plan.md y el contrato de repositorios; mantener exports al final.
 8. Completar el inventario método+ruta → caso de uso → test y registrar diferencias de contrato.
 

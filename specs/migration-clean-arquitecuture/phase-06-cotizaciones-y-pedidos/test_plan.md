@@ -41,20 +41,20 @@ Antes de cerrar la fase, ejecutar también npm run typecheck, npm run lint, npm 
 **Estado:** NOT_RUN.  
 **Evidencia / incidencia:** pendiente.
 
-### D06-T02 — Ítems acumulados y tenant
+### D06-T02 — Ítems y mapeo de cotización
 
 **Trazabilidad:** UC-16, UC-17, UC-18 (seleccionar operaciones del caso en inventario D01). **Necesario para cerrar la fase:** sí.
 
-**Precondiciones y datos:** Cotización A contiene8 P1; P1 stock10; producto B disponible. Usar fixture global y el actor indicado; si no se especifica actor para ruta privada, usar admin A con POS/caja válidos. Donde el test menciona seller usar seller A.
+**Precondiciones y datos:** Cotización existente con artículos y productos del fixture. Usar el actor habilitado por el contrato actual.
 
 **Pasos:**
 
 1. Preparar datos y registrar conteos/saldos iniciales; resolver aliases a IDs reales.
-2. Invocar caso de uso AddQuoteItems con3 P1; repetir con productoB usando tenantA. No inventar ruta HTTP: probar puerto de aplicación y caller del bot.
+2. Invocar el caso de uso que agrega artículos y comparar su salida con el adapter anterior. No inventar ruta HTTP: probar el puerto de aplicación y el caller del bot.
 3. Consultar documentos afectados desde conexión independiente o API de lectura; comparar resultados HTTP y persistencia con las assertions siguientes.
 4. Guardar request/response y evidencia de cada variante. Liberar conexiones y dejar el dataset aislado listo para reset.
 
-**Resultado esperado y assertions:** Conflicto409 equivalente de dominio por acumulado11; producto ajeno404. Cotización sigue con8 unidades y total800.
+**Resultado esperado y assertions:** La cotización conserva artículos, totales y formato de salida equivalentes. La entidad no conoce Mongoose y el repositorio persiste el estado resultante.
 
 **Automatización:** implementar caso D06-T02 en `src/test/migration/phase-06`. Ejecutar mediante runner `--case D06-T02`; el runner debe fallar si cualquier assertion no coincide. Unitarias de dominio pueden usar fakes; verificaciones de BD/concurrencia usan replica set y la aplicación real.
 
@@ -152,16 +152,13 @@ Para cada método+ruta del inventario D01 asignado a UC-16, UC-17, UC-18, ejecut
 
 | Variante | Acción | Assertion |
 |---|---|---|
-| Positiva | Actor habilitado y payload válido capturado en contrato | Status, schema, campos y efectos exactos del contrato |
-| Entrada inválida | Omitir campo requerido o usar ID mal formado | 400 y cero escrituras cuando aplique validación |
-| Sin credencial | Omitir JWT o botKey en ruta protegida por esa credencial | 401; sin datos privados |
-| Rol insuficiente | Usar seller contra operación de admin o admin contra superadmin | 403; cero cambios |
-| Tenant B | Cambiar ID por recurso B con token/credencial A | 404 o rechazo de credencial según contrato; B intacto |
-| Lectura | Repetir GET y comparar conteos de negocio | Sin mutaciones de negocio; exceptuar aprovisionamiento explícito de settings |
-| Paginación | Página1 y2 con limit1 sobre2 registros del tenant | Sin IDs duplicados y total correcto |
-| Compatibilidad | Mismo fixture con candidato y versión base compatible | DTO/status equivalentes salvo cambio registrado |
+| Request válido | Payload del contrato actual | Status, schema, campos y efectos equivalentes |
+| Request inválido | Omitir campo requerido o usar ID mal formado | Respuesta de validación equivalente; sin escrituras cuando aplique |
+| Lectura posterior | Repetir GET luego de una operación | Persistencia y DTOs equivalentes |
+| Paginación | Página 1 y 2 con limit 1 sobre dos registros | Sin duplicados y total equivalente |
+| Compatibilidad | Mismo fixture con candidato y versión base | DTO/status equivalentes salvo diferencias de mapeo documentadas |
 
-Si una variante no aplica (por ejemplo rol en endpoint público), registrar N/A con justificación. No aplicar N/A a pruebas financieras, de tenant o de credenciales cuando la operación las requiere.
+Si una variante no aplica, registrar N/A con justificación.
 
 ## Cierre de pruebas
 

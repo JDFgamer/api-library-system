@@ -131,16 +131,13 @@ Para cada método+ruta del inventario D01 asignado a UC-01, UC-02, UC-03, ejecut
 
 | Variante | Acción | Assertion |
 |---|---|---|
-| Positiva | Actor habilitado y payload válido capturado en contrato | Status, schema, campos y efectos exactos del contrato |
-| Entrada inválida | Omitir campo requerido o usar ID mal formado | 400 y cero escrituras cuando aplique validación |
-| Sin credencial | Omitir JWT o botKey en ruta protegida por esa credencial | 401; sin datos privados |
-| Rol insuficiente | Usar seller contra operación de admin o admin contra superadmin | 403; cero cambios |
-| Tenant B | Cambiar ID por recurso B con token/credencial A | 404 o rechazo de credencial según contrato; B intacto |
-| Lectura | Repetir GET y comparar conteos de negocio | Sin mutaciones de negocio; exceptuar aprovisionamiento explícito de settings |
-| Paginación | Página1 y2 con limit1 sobre2 registros del tenant | Sin IDs duplicados y total correcto |
-| Compatibilidad | Mismo fixture con candidato y versión base compatible | DTO/status equivalentes salvo cambio registrado |
+| Request válido | Payload del contrato actual | Status, schema, campos y efectos equivalentes |
+| Request inválido | Omitir campo requerido o usar ID mal formado | Respuesta de validación equivalente; sin escrituras cuando aplique |
+| Lectura posterior | Repetir GET luego de una operación | Persistencia y DTOs equivalentes |
+| Paginación | Página 1 y 2 con limit 1 sobre dos registros | Sin duplicados y total equivalente |
+| Compatibilidad | Mismo fixture con candidato y versión base | DTO/status equivalentes salvo diferencias de mapeo documentadas |
 
-Si una variante no aplica (por ejemplo rol en endpoint público), registrar N/A con justificación. No aplicar N/A a pruebas financieras, de tenant o de credenciales cuando la operación las requiere.
+Si una variante no aplica, registrar N/A con justificación.
 
 ## Cierre de pruebas
 

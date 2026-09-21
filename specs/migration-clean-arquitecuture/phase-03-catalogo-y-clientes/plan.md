@@ -10,8 +10,8 @@ Tener probados los cambios de D02 necesarios para esta fase. Revisar las decisio
 
 1. Definir Product y Client, repositorios por tenant y mappers compatibles.
 2. Mover CRUD a casos de uso y parsear filtros tipados una sola vez.
-3. Mantener stock condicional no negativo; probar operaciones add/set.
-4. Revisar unicidad de códigos y cliente por defecto; emitir reporte de duplicados antes de índices.
+3. Migrar operaciones add/set de stock y mantener sus contratos actuales.
+4. Documentar restricciones e índices existentes antes de modificar adaptadores de persistencia.
 5. Mantener historial y deudores mediante puertos de lectura del módulo financiero.
 6. Implementar todos los escenarios de test_plan.md y el contrato de repositorios; mantener exports al final.
 7. Completar el inventario método+ruta → caso de uso → test y registrar diferencias de contrato.

@@ -23,15 +23,9 @@ Rutas Express
 
 La estructura actual es un monolito modular, pero la separación es principalmente técnica. Los servicios contienen simultáneamente reglas de negocio, consultas MongoDB, transacciones, autorización parcial, generación de números y composición de respuestas.
 
-### Observaciones relevantes del relevamiento
+### Alcance de la migración
 
-- `Services/Sales/index.ts` y `Services/Quotes/index.ts` son archivos grandes y concentran múltiples responsabilidades.
-- Existen validaciones de tenant incompletas en algunos flujos, especialmente al agregar productos a cotizaciones.
-- La generación de números con `max(number) + 1` puede colisionar bajo concurrencia.
-- Hay flujos financieros que requieren idempotencia y consistencia entre venta, stock, caja y crédito.
-- Los tests actuales pasan, pero las pruebas de integración utilizan un servidor de prueba propio y el reporte de cobertura no cubre adecuadamente el código productivo.
-- El manejo de errores no es uniforme: varios `throw new Error()` terminan como errores HTTP 500 genéricos.
-- La configuración local de MongoDB debe ejecutarse como replica set para soportar correctamente las transacciones usadas por la aplicación.
+La migración se centra en separar responsabilidades, mover reglas de negocio a casos de uso y entidades, aislar Mongoose dentro de infraestructura y crear una base de pruebas sobre la aplicación real. No es un plan de corrección de incidencias existentes.
 
 ## 3. Arquitectura propuesta
 
@@ -200,7 +194,6 @@ Con una persona, la migración completa representa aproximadamente 8–12 semana
 - Configurar MongoDB como replica set en desarrollo y CI.
 - Incorporar `MongoMemoryReplSet` para pruebas transaccionales.
 - Corregir cobertura y separar pruebas unitarias de integración.
-- Resolver errores de prioridad alta: autorización de escuelas, refresh tokens, tenant de productos, devoluciones y settings.
 
 ### Fase 2: kernel compartido — 4 a 6 días
 
@@ -290,9 +283,6 @@ Mover reportes a agregaciones MongoDB o proyecciones/materializaciones. Eliminar
 - Introducir `UnitOfWork` para ventas, stock, caja y créditos.
 - Generar números con una colección de contadores atómicos, no con `max + 1`.
 - Agregar idempotency keys y un índice único para pagos o creación de ventas desde cotizaciones.
-- Separar access token y refresh token mediante tipo, audiencia y/o secretos distintos.
-- Usar códigos públicos de cotización más largos y con alcance por tenant.
-- Crear índices compuestos por tenant y claves de búsqueda reales.
 - Reemplazar cálculos masivos en memoria por agregaciones MongoDB.
 - Estandarizar errores de dominio y respuestas HTTP.
 - Mantener contratos REST compatibles durante la migración.
@@ -314,4 +304,3 @@ La migración puede considerarse exitosa cuando:
 ## 15. Conclusión
 
 La propuesta es viable y conveniente para hacer crecer la aplicación, pero debe ejecutarse por etapas. El mayor retorno se obtiene al migrar primero el núcleo financiero y los límites de tenant, acompañado por una base de tests real. La arquitectura objetivo recomendada es un **monolito modular con Clean Architecture, entidades de dominio, repositorios específicos y Unit of Work**. Esto reduce el acoplamiento actual y prepara la API para escalar en funcionalidades, equipo y volumen sin asumir todavía el costo operativo de microservicios.
-

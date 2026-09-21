@@ -36,7 +36,7 @@ Conservar conversaciones y mensajes; campos opcionales para observabilidad. Rete
 - D07-T05: Límites y métricas; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 - D07-T06: Adapters y rollback; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con pruebas de contrato y paridad aplicables.
 
 ## Fuera de esta fase
 

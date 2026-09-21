@@ -21,22 +21,21 @@ Código de referencia: Services/Auth, Users, Admins, Schools, Pos, Settings; rou
 
 Aplicar reglas de dependencia y exports del spec global. Cada caso de uso recibe DTO validado y contexto autenticado cuando corresponde, llama puertos definidos por dominio/aplicación y devuelve DTO sin documentos Mongoose. Los endpoints públicos se validan con la credencial y alcance que fija su contrato.
 
-Los errores objetivo de la fase se traducen mediante el mapper HTTP global. Registrar cambios frente al baseline en OpenAPI y fixtures de contrato, incluidos status, campos, headers y permisos. No aceptar diferencias no explicadas.
+Registrar la paridad frente al baseline en OpenAPI y fixtures de contrato, incluidos status, campos y headers. Cualquier diferencia funcional se documenta fuera de esta migración.
 
 ## Persistencia y compatibilidad
 
-Añadir almacenamiento de refresh y campos opcionales. Crear settings faltantes de forma idempotente. Auditoría previa de duplicados; no borrar usuarios ni escuelas.
+Conservar colecciones, IDs y formatos de documentos. Los adapters nuevos deben poder leer y escribir los datos existentes.
 
 ## Aceptación verificable
 
-- D02-T01: Login y renovación; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D02-T02: Tipos y revocación de token; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D02-T03: Matriz de permisos y tenant; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D02-T04: Inactivación y gestión; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D02-T05: Settings y aprovisionamiento; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
-- D02-T06: Repositorios y rollback de sesión; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D02-T01: Contrato de sesión; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D02-T02: Casos de uso de usuarios y administradores; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D02-T03: Casos de uso de escuelas y POS; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D02-T04: Caso de uso de configuración; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
+- D02-T05: Paridad y dependencias del módulo; debe cumplir todas las assertions de [test_plan.md](test_plan.md).
 
-Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con un caso positivo, uno inválido y uno de autorización/tenant cuando corresponda.
+Además, la regresión de fases anteriores debe pasar y cada operación de los prefijos a cargo de esta fase debe figurar en el inventario D01 con sus pruebas de paridad y contrato.
 
 ## Fuera de esta fase
 
