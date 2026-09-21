@@ -1,14 +1,16 @@
 import { Request, Response } from 'express';
 import * as productsService from '../../Services/Products/index.js';
+import { getValidatedInput } from '../../middleware/validation.js';
+import type { ListProductsInput } from './types.js';
 
 export async function listProducts(req: Request, res: Response): Promise<void> {
-  const q = req.query;
+  const q = getValidatedInput<{ query: ListProductsInput }>(res)?.query ?? req.query;
   const result = await productsService.listProducts({
     schoolId: req.schoolId!,
     search: q.search as string | undefined,
     type: q.type as 'product' | 'service' | undefined,
-    active: q.active !== undefined ? q.active === 'true' : undefined,
-    lowStock: q.lowStock !== undefined ? q.lowStock === 'true' : undefined,
+    active: q.active !== undefined ? q.active === true || q.active === 'true' : undefined,
+    lowStock: q.lowStock !== undefined ? q.lowStock === true || q.lowStock === 'true' : undefined,
     page: Number(q.page) || 1,
     limit: Number(q.limit) || 20,
     sortBy: (q.sortBy as string) || 'name',

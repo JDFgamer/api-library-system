@@ -45,12 +45,12 @@ Conservar la referencia al commit compatible anterior y la evidencia de las prue
 
 | Campo | Valor |
 |---|---|
-| Estado de la fase | PENDIENTE |
-| Commit probado | Pendiente |
+| Estado de la fase | EN CURSO — base `createApp`, handler serverless testeable y validación normalizada iniciados |
+| Commit probado | Working tree (sin commit) |
 | Deploy ID | Sin deploy |
-| Tests ejecutados | NOT_RUN |
-| Resultados obtenidos | Pendientes |
-| Evidencias | Pendientes |
-| Próximo paso / fallos | Pendiente |
+| Tests ejecutados | `npm run typecheck`; `npm run build`; `npm run lint`; `npm run test:run -- src/test/migration/phase-01`; `npm run test:run`; `npm run test:coverage` |
+| Resultados obtenidos | PASS: D01 inicial (3 assertions); regresión 388/388; cobertura 31.59% líneas globales y archivos de raíz incluidos. Lint sin errores, 32 warnings preexistentes en tests. |
+| Evidencias | `src/test/migration/phase-01/base-and-validation.test.ts`; salida local del 2026-09-20 |
+| Próximo paso / fallos | Implementar `MongoMemoryReplSet`, fixture común y runner por `--case`; inventariar rutas/contratos. D01-T03/T04/T05 completos aún pendientes. |
 
 Repetir este registro si hay más de una entrega o ejecución de pruebas.
