@@ -2,8 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodType, ZodError } from 'zod';
 import { ValidationError } from '../utils/errors.js';
 
+type ValidatedRequest = {
+  body?: unknown;
+  query?: unknown;
+  params?: unknown;
+};
+
+function getValidatedInput<T extends ValidatedRequest>(res: Response): T | undefined {
+  return res.locals.validatedInput as T | undefined;
+}
+
 export function validate(schema: ZodType) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parsed = await schema.parseAsync({
         body: req.body,
@@ -11,13 +21,10 @@ export function validate(schema: ZodType) {
         params: req.params,
       });
 
-      // Express 5: req.query and req.params are read-only getters.
-      // Only req.body is writable. Store parsed query/params in res.locals
-      // as a fallback, but controllers typically read from req directly
-      // with type casts, so validation already served its purpose.
       if (parsed && typeof parsed === 'object') {
+        res.locals.validatedInput = parsed;
         if ('body' in parsed) {
-          req.body = parsed.body;
+          req.body = (parsed as ValidatedRequest).body;
         }
       }
 
@@ -38,3 +45,5 @@ export function validate(schema: ZodType) {
     }
   };
 }
+
+export { getValidatedInput };

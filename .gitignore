@@ -8,14 +8,13 @@ node_modules/
 
 # Build
 dist/
-scripts
 
 # OS
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/
+.vscode/*
 .idea/
 *.swp
 *.swo
@@ -33,3 +32,6 @@ coverage/
 
 # Local planning docs
 ACTION_PLAN.md
+
+# Local scripts
+scripts/

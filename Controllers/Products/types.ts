@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const queryBoolean = z.enum(['true', 'false']).transform((value) => value === 'true');
+
 export const createProductSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Nombre requerido').max(120),
@@ -46,8 +48,8 @@ export const listProductsSchema = z.object({
   query: z.object({
     search: z.string().optional(),
     type: z.enum(['product', 'service']).optional(),
-    active: z.coerce.boolean().optional(),
-    lowStock: z.coerce.boolean().optional(),
+    active: queryBoolean.optional(),
+    lowStock: queryBoolean.optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     sortBy: z.enum(['name', 'price', 'stock', 'createdAt']).default('name'),
